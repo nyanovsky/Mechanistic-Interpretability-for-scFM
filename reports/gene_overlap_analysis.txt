@@ -1,0 +1,2303 @@
+
+================================================================================
+SUMMARY STATISTICS
+================================================================================
+Metric: gene_overlap
+Total pairs: 8,476,903
+Mean similarity: 0.0047
+Std similarity: 0.0177
+Min similarity: 0.0000
+Max similarity: 0.9167
+Median similarity: 0.0000
+
+================================================================================
+HIGH SIMILARITY PAIRS (n=20)
+================================================================================
+
+
+Pair: Feature 1741 <-> Feature 3170
+Similarity: 0.9167
+
+  Feature 1741
+    Participation Ratio: 709.0
+    GO terms: 90
+    Top genes (20):
+      LY86: 10.3870
+      MEF2C: 8.0620
+      BANK1: 7.9596
+      CD19: 7.7593
+      HVCN1: 7.6110
+      CD22: 7.2909
+      FCRL5: 7.0889
+      PRDX5: 7.0779
+      SPIB: 6.7763
+      FCRL1: 6.7005
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] B cell activation (GO:0042113) (p=7.12e-15)
+      [Biological] B cell receptor signaling pathway (GO:0050853) (p=3.38e-11)
+      [Biological] regulation of B cell receptor signaling pathway (GO:0050855) (p=5.10e-09)
+      [Biological] regulation of B cell proliferation (GO:0030888) (p=7.61e-07)
+      [Biological] regulation of B cell activation (GO:0050864) (p=9.78e-07)
+      ... and 85 more significant terms
+
+  Feature 3170
+    Participation Ratio: 20.5
+    GO terms: 47
+    Top genes (20):
+      CD79A: 31.8204
+      PAX5: 29.4799
+      VPREB3: 28.2482
+      MS4A1: 25.8763
+      TCL1A: 24.3868
+      CD22: 24.3551
+      CD19: 23.6017
+      CD79B: 23.1820
+      BANK1: 23.1167
+      FCRLA: 21.4184
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] B cell activation (GO:0042113) (p=3.88e-10)
+      [Biological] B cell receptor signaling pathway (GO:0050853) (p=1.48e-07)
+      [Biological] regulation of B cell receptor signaling pathway (GO:0050855) (p=8.42e-06)
+      [Biological] regulation of B cell activation (GO:0050864) (p=1.17e-05)
+      [Biological] B cell proliferation (GO:0042100) (p=1.41e-05)
+      ... and 42 more significant terms
+
+  Overlapping genes in top-k (k_i=100, k_j=12): 11
+    BANK1, CD19, CD22, CD79B, FCRL1, FCRLA, MS4A1, PAX5, TCL1A, TNFRSF13C, VPREB3
+
+  Overlapping GO terms (26):
+    - B cell activation (GO:0042113)
+    - B cell activation involved in immune response (GO:0002312)
+    - B cell differentiation (GO:0030183)
+    - B cell mediated immunity (GO:0019724)
+    - B cell proliferation (GO:0042100)
+    - B cell receptor signaling pathway (GO:0050853)
+    - antigen receptor-mediated signaling pathway (GO:0050851)
+    - immune response-activating cell surface receptor signaling pathway (GO:0002429)
+    - immunoglobulin mediated immune response (GO:0016064)
+    - integral component of plasma membrane (GO:0005887)
+    ... and 16 more
+
+  GO term overlap coefficient: 0.5532
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 389 <-> Feature 517
+Similarity: 0.9000
+
+  Feature 389
+    Participation Ratio: 15.9
+    GO terms: 117
+    Top genes (20):
+      RPS4X: 33.7687
+      RPS3: 30.8940
+      RPL8: 21.9630
+      RPS14: 21.7972
+      RPS6: 20.0849
+      RPL11: 18.7803
+      TPT1: 17.1516
+      RPL3: 15.8271
+      EEF1A1: 14.4776
+      SLC25A6: 14.3507
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] peptide biosynthetic process (GO:0043043) (p=1.07e-13)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=1.85e-13)
+      [Biological] cytoplasmic translation (GO:0002181) (p=1.85e-13)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=1.85e-13)
+      [Biological] translation (GO:0006412) (p=2.06e-13)
+      ... and 112 more significant terms
+
+  Feature 517
+    Participation Ratio: 97.8
+    GO terms: 89
+    Top genes (20):
+      B2M: 33.0411
+      TMSB4X: 32.7968
+      RPL10: 32.1311
+      RPL13A: 30.6838
+      RPS6: 30.5052
+      RPL13: 29.7558
+      RPS2: 28.4025
+      RPL19: 27.4076
+      RPL3: 27.3012
+      RPL11: 26.6614
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=2.93e-100)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=2.29e-99)
+      [Biological] protein targeting to ER (GO:0045047) (p=4.25e-97)
+      [Biological] cytoplasmic translation (GO:0002181) (p=8.60e-97)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=6.35e-95)
+      ... and 84 more significant terms
+
+  Overlapping genes in top-k (k_i=10, k_j=58): 9
+    EEF1A1, RPL11, RPL3, RPL8, RPS14, RPS3, RPS4X, RPS6, TPT1
+
+  Overlapping GO terms (63):
+    - 5S rRNA binding (GO:0008097)
+    - RNA binding (GO:0003723)
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - asymmetric synapse (GO:0032279)
+    - cell-substrate junction (GO:0030055)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cellular protein metabolic process (GO:0044267)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic translation (GO:0002181)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    ... and 53 more
+
+  GO term overlap coefficient: 0.7079
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 517 <-> Feature 1833
+Similarity: 0.8421
+
+  Feature 517
+    Participation Ratio: 97.8
+    GO terms: 89
+    Top genes (20):
+      B2M: 33.0411
+      TMSB4X: 32.7968
+      RPL10: 32.1311
+      RPL13A: 30.6838
+      RPS6: 30.5052
+      RPL13: 29.7558
+      RPS2: 28.4025
+      RPL19: 27.4076
+      RPL3: 27.3012
+      RPL11: 26.6614
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=2.93e-100)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=2.29e-99)
+      [Biological] protein targeting to ER (GO:0045047) (p=4.25e-97)
+      [Biological] cytoplasmic translation (GO:0002181) (p=8.60e-97)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=6.35e-95)
+      ... and 84 more significant terms
+
+  Feature 1833
+    Participation Ratio: 33.3
+    GO terms: 72
+    Top genes (20):
+      RPL12: 33.0424
+      RPL28: 31.5894
+      RPS8: 30.2723
+      RPS7: 27.8511
+      RPL29: 27.3595
+      RPL14: 26.1187
+      RPL7A: 24.7686
+      RPL24: 23.6848
+      RPL6: 22.0685
+      RPL18: 21.8656
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=2.34e-37)
+      [Biological] cytoplasmic translation (GO:0002181) (p=2.34e-37)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=2.34e-37)
+      [Biological] protein targeting to ER (GO:0045047) (p=9.55e-37)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=4.20e-36)
+      ... and 67 more significant terms
+
+  Overlapping genes in top-k (k_i=58, k_j=19): 16
+    FAU, NACA, RPL10A, RPL11, RPL12, RPL14, RPL18, RPL19, RPL28, RPL29, RPL5, RPL6, RPS15, RPS15A, RPS7, RPS8
+
+  Overlapping GO terms (58):
+    - 5S rRNA binding (GO:0008097)
+    - RNA binding (GO:0003723)
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - asymmetric synapse (GO:0032279)
+    - cadherin binding (GO:0045296)
+    - cell-substrate junction (GO:0030055)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cellular protein metabolic process (GO:0044267)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic translation (GO:0002181)
+    ... and 48 more
+
+  GO term overlap coefficient: 0.8056
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 2399 <-> Feature 3133
+Similarity: 0.8000
+
+  Feature 2399
+    Participation Ratio: 18.2
+    GO terms: 58
+    Top genes (20):
+      RPLP0: 43.5786
+      RPS5: 32.9778
+      RPSA: 30.5939
+      EEF1B2: 30.5012
+      RPL4: 29.6842
+      RPL10A: 27.8566
+      RPS9: 21.1142
+      RPL7A: 19.6167
+      RPL3: 19.4085
+      RPL5: 18.6716
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=1.25e-19)
+      [Biological] cytoplasmic translation (GO:0002181) (p=1.25e-19)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=1.25e-19)
+      [Biological] translation (GO:0006412) (p=1.77e-19)
+      [Biological] protein targeting to ER (GO:0045047) (p=1.77e-19)
+      ... and 53 more significant terms
+
+  Feature 3133
+    Participation Ratio: 116.5
+    GO terms: 99
+    Top genes (20):
+      RPL24: 19.3103
+      RPL37: 18.2950
+      MT-CO3: 17.7960
+      EEF1A1: 15.7629
+      RPL35A: 15.0932
+      RPL15: 14.8327
+      RPL10A: 14.8225
+      RPS7: 14.6148
+      RPL37A: 14.4570
+      RPL22: 14.2612
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] cytoplasmic translation (GO:0002181) (p=9.45e-85)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=4.73e-83)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=3.53e-82)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=1.13e-80)
+      [Biological] protein targeting to ER (GO:0045047) (p=3.04e-80)
+      ... and 94 more significant terms
+
+  Overlapping genes in top-k (k_i=10, k_j=69): 8
+    RPL10A, RPL3, RPL4, RPL5, RPL7A, RPS5, RPS9, RPSA
+
+  Overlapping GO terms (48):
+    - RNA binding (GO:0003723)
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - cell-substrate junction (GO:0030055)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cellular protein metabolic process (GO:0044267)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic translation (GO:0002181)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    - cytosolic small ribosomal subunit (GO:0022627)
+    - focal adhesion (GO:0005925)
+    ... and 38 more
+
+  GO term overlap coefficient: 0.8276
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 1790 <-> Feature 4827
+Similarity: 0.8000
+
+  Feature 1790
+    Participation Ratio: 120.6
+    GO terms: 181
+    Top genes (20):
+      OAS2: 25.3751
+      BTN3A3: 23.8739
+      BTN3A2: 21.7617
+      APOL2: 20.4281
+      GBP3: 20.0735
+      HERC6: 19.8630
+      IL12RB1: 19.4605
+      OAS1: 19.4101
+      OAS3: 19.1862
+      IFIT3: 18.6422
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] cellular response to type I interferon (GO:0071357) (p=2.50e-21)
+      [Biological] type I interferon signaling pathway (GO:0060337) (p=2.50e-21)
+      [Biological] defense response to symbiont (GO:0140546) (p=1.07e-18)
+      [Biological] defense response to virus (GO:0051607) (p=2.58e-18)
+      [Biological] negative regulation of viral process (GO:0048525) (p=1.94e-15)
+      ... and 176 more significant terms
+
+  Feature 4827
+    Participation Ratio: 16.1
+    GO terms: 111
+    Top genes (20):
+      MX2: 31.1357
+      MX1: 24.4028
+      EIF2AK2: 23.2768
+      OAS1: 22.7985
+      HELZ2: 20.7274
+      OAS2: 18.9956
+      DCTN5: 18.6380
+      HERC5: 17.8343
+      OAS3: 16.5305
+      MTMR9: 14.0912
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] defense response to symbiont (GO:0140546) (p=1.23e-09)
+      [Biological] defense response to virus (GO:0051607) (p=1.23e-09)
+      [Biological] negative regulation of viral genome replication (GO:0045071) (p=1.53e-09)
+      [Biological] type I interferon signaling pathway (GO:0060337) (p=2.33e-09)
+      [Biological] cellular response to type I interferon (GO:0071357) (p=2.33e-09)
+      ... and 106 more significant terms
+
+  Overlapping genes in top-k (k_i=72, k_j=10): 8
+    EIF2AK2, HELZ2, HERC5, MX1, MX2, OAS1, OAS2, OAS3
+
+  Overlapping GO terms (61):
+    - GTPase activity (GO:0003924)
+    - ISG15-protein conjugation (GO:0032020)
+    - RIG-I signaling pathway (GO:0039529)
+    - RNA binding (GO:0003723)
+    - adenylyltransferase activity (GO:0070566)
+    - antiviral innate immune response (GO:0140374)
+    - cellular response to interferon-gamma (GO:0071346)
+    - cellular response to type I interferon (GO:0071357)
+    - cellular response to virus (GO:0098586)
+    - cytokine-mediated signaling pathway (GO:0019221)
+    ... and 51 more
+
+  GO term overlap coefficient: 0.5495
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 1460 <-> Feature 3079
+Similarity: 0.8000
+
+  Feature 1460
+    Participation Ratio: 505.3
+    GO terms: 44
+    Top genes (20):
+      RNF7: 6.0153
+      PHF21A: 5.5954
+      KLRF1: 5.1597
+      PPP2R5E: 4.9277
+      ZNF148: 4.8023
+      CD53: 4.4964
+      ZNF623: 4.4663
+      EOMES: 4.3431
+      CASP4: 4.2378
+      ZNF655: 4.1920
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] regulation of immune response (GO:0050776) (p=9.77e-08)
+      [Cellular] cytolytic granule (GO:0044194) (p=4.69e-04)
+      [Biological] regulation of B cell receptor signaling pathway (GO:0050855) (p=1.18e-03)
+      [Biological] neutrophil degranulation (GO:0043312) (p=1.18e-03)
+      [Biological] neutrophil activation involved in immune response (GO:0002283) (p=1.18e-03)
+      ... and 39 more significant terms
+
+  Feature 3079
+    Participation Ratio: 16.6
+    GO terms: 140
+    Top genes (20):
+      NKG7: 40.9900
+      GNLY: 29.3652
+      GZMB: 27.8704
+      GZMH: 24.8331
+      CST7: 23.0628
+      PRF1: 20.3972
+      CMC1: 19.7757
+      GZMA: 17.8276
+      KLRD1: 17.5821
+      CCL5: 17.1323
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] cytolytic granule (GO:0044194) (p=3.46e-08)
+      [Cellular] lysosome (GO:0005764) (p=3.29e-04)
+      [Molecular] serine-type endopeptidase activity (GO:0004252) (p=4.15e-04)
+      [Molecular] serine-type peptidase activity (GO:0008236) (p=4.15e-04)
+      [Biological] apoptotic process (GO:0006915) (p=7.28e-04)
+      ... and 135 more significant terms
+
+  Overlapping genes in top-k (k_i=100, k_j=10): 8
+    CMC1, CST7, GNLY, GZMB, GZMH, KLRD1, NKG7, PRF1
+
+  Overlapping GO terms (6):
+    - cellular defense response (GO:0006968)
+    - cytolytic granule (GO:0044194)
+    - defense response to tumor cell (GO:0002357)
+    - lysosome (GO:0005764)
+    - natural killer cell mediated immunity (GO:0002228)
+    - positive regulation of leukocyte mediated cytotoxicity (GO:0001912)
+
+  GO term overlap coefficient: 0.1364
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 31 <-> Feature 517
+Similarity: 0.8000
+
+  Feature 31
+    Participation Ratio: 14.1
+    GO terms: 40
+    Top genes (20):
+      EEF1A1: 34.6864
+      TPT1: 32.7333
+      RPS12: 29.9573
+      RPL28: 21.7362
+      RPL10: 20.7791
+      RPLP1: 18.6920
+      RPL30: 17.5899
+      RPL41: 17.2540
+      RPL13: 13.1100
+      RPL39: 13.0790
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] peptide biosynthetic process (GO:0043043) (p=7.38e-17)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=1.21e-16)
+      [Biological] cytoplasmic translation (GO:0002181) (p=1.21e-16)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=1.21e-16)
+      [Biological] translation (GO:0006412) (p=1.73e-16)
+      ... and 35 more significant terms
+
+  Feature 517
+    Participation Ratio: 97.8
+    GO terms: 89
+    Top genes (20):
+      B2M: 33.0411
+      TMSB4X: 32.7968
+      RPL10: 32.1311
+      RPL13A: 30.6838
+      RPS6: 30.5052
+      RPL13: 29.7558
+      RPS2: 28.4025
+      RPL19: 27.4076
+      RPL3: 27.3012
+      RPL11: 26.6614
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=2.93e-100)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=2.29e-99)
+      [Biological] protein targeting to ER (GO:0045047) (p=4.25e-97)
+      [Biological] cytoplasmic translation (GO:0002181) (p=8.60e-97)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=6.35e-95)
+      ... and 84 more significant terms
+
+  Overlapping genes in top-k (k_i=10, k_j=58): 8
+    EEF1A1, RPL10, RPL13, RPL28, RPL30, RPLP1, RPS12, TPT1
+
+  Overlapping GO terms (25):
+    - RNA binding (GO:0003723)
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cellular protein metabolic process (GO:0044267)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic translation (GO:0002181)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    - gene expression (GO:0010467)
+    - large ribosomal subunit (GO:0015934)
+    - ncRNA processing (GO:0034470)
+    ... and 15 more
+
+  GO term overlap coefficient: 0.6250
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 384 <-> Feature 517
+Similarity: 0.7368
+
+  Feature 384
+    Participation Ratio: 33.2
+    GO terms: 86
+    Top genes (20):
+      RPLP1: 31.9885
+      RPL19: 26.8902
+      RPS13: 24.3879
+      RPS12: 23.4843
+      RPS23: 22.8256
+      RPS5: 22.2466
+      RPS14: 21.5338
+      RPL32: 19.6872
+      RPL30: 18.2361
+      RPS19: 17.6031
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=8.24e-31)
+      [Biological] cytoplasmic translation (GO:0002181) (p=8.24e-31)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=8.24e-31)
+      [Biological] protein targeting to ER (GO:0045047) (p=2.71e-30)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=9.59e-30)
+      ... and 81 more significant terms
+
+  Feature 517
+    Participation Ratio: 97.8
+    GO terms: 89
+    Top genes (20):
+      B2M: 33.0411
+      TMSB4X: 32.7968
+      RPL10: 32.1311
+      RPL13A: 30.6838
+      RPS6: 30.5052
+      RPL13: 29.7558
+      RPS2: 28.4025
+      RPL19: 27.4076
+      RPL3: 27.3012
+      RPL11: 26.6614
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=2.93e-100)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=2.29e-99)
+      [Biological] protein targeting to ER (GO:0045047) (p=4.25e-97)
+      [Biological] cytoplasmic translation (GO:0002181) (p=8.60e-97)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=6.35e-95)
+      ... and 84 more significant terms
+
+  Overlapping genes in top-k (k_i=19, k_j=58): 14
+    RPL11, RPL18, RPL18A, RPL19, RPL30, RPL32, RPLP1, RPS12, RPS14, RPS15, RPS19, RPS23, RPS3, RPS5
+
+  Overlapping GO terms (51):
+    - 5S rRNA binding (GO:0008097)
+    - RNA binding (GO:0003723)
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - asymmetric synapse (GO:0032279)
+    - cell-substrate junction (GO:0030055)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cellular protein metabolic process (GO:0044267)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic translation (GO:0002181)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    ... and 41 more
+
+  GO term overlap coefficient: 0.5930
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 1833 <-> Feature 3133
+Similarity: 0.7368
+
+  Feature 1833
+    Participation Ratio: 33.3
+    GO terms: 72
+    Top genes (20):
+      RPL12: 33.0424
+      RPL28: 31.5894
+      RPS8: 30.2723
+      RPS7: 27.8511
+      RPL29: 27.3595
+      RPL14: 26.1187
+      RPL7A: 24.7686
+      RPL24: 23.6848
+      RPL6: 22.0685
+      RPL18: 21.8656
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=2.34e-37)
+      [Biological] cytoplasmic translation (GO:0002181) (p=2.34e-37)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=2.34e-37)
+      [Biological] protein targeting to ER (GO:0045047) (p=9.55e-37)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=4.20e-36)
+      ... and 67 more significant terms
+
+  Feature 3133
+    Participation Ratio: 116.5
+    GO terms: 99
+    Top genes (20):
+      RPL24: 19.3103
+      RPL37: 18.2950
+      MT-CO3: 17.7960
+      EEF1A1: 15.7629
+      RPL35A: 15.0932
+      RPL15: 14.8327
+      RPL10A: 14.8225
+      RPS7: 14.6148
+      RPL37A: 14.4570
+      RPL22: 14.2612
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] cytoplasmic translation (GO:0002181) (p=9.45e-85)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=4.73e-83)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=3.53e-82)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=1.13e-80)
+      [Biological] protein targeting to ER (GO:0045047) (p=3.04e-80)
+      ... and 94 more significant terms
+
+  Overlapping genes in top-k (k_i=19, k_j=69): 14
+    NACA, RPL10A, RPL12, RPL14, RPL18, RPL19, RPL24, RPL29, RPL5, RPL6, RPL7A, RPS15, RPS7, RPS8
+
+  Overlapping GO terms (54):
+    - RNA binding (GO:0003723)
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - asymmetric synapse (GO:0032279)
+    - cadherin binding (GO:0045296)
+    - cell-substrate junction (GO:0030055)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cellular protein metabolic process (GO:0044267)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic translation (GO:0002181)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    ... and 44 more
+
+  GO term overlap coefficient: 0.7500
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 2041 <-> Feature 3133
+Similarity: 0.7143
+
+  Feature 2041
+    Participation Ratio: 23.4
+    GO terms: 52
+    Top genes (20):
+      RPS29: 37.3791
+      RPL37: 30.6692
+      RPS28: 30.5499
+      RPL36: 29.8051
+      RPS21: 27.7370
+      RPL39: 26.7714
+      RPL38: 25.6734
+      RPS27: 25.6716
+      MT-ND3: 24.6736
+      RPL37A: 23.3724
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=4.48e-29)
+      [Biological] cytoplasmic translation (GO:0002181) (p=4.48e-29)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=4.48e-29)
+      [Biological] protein targeting to ER (GO:0045047) (p=1.19e-28)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=3.42e-28)
+      ... and 47 more significant terms
+
+  Feature 3133
+    Participation Ratio: 116.5
+    GO terms: 99
+    Top genes (20):
+      RPL24: 19.3103
+      RPL37: 18.2950
+      MT-CO3: 17.7960
+      EEF1A1: 15.7629
+      RPL35A: 15.0932
+      RPL15: 14.8327
+      RPL10A: 14.8225
+      RPS7: 14.6148
+      RPL37A: 14.4570
+      RPL22: 14.2612
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] cytoplasmic translation (GO:0002181) (p=9.45e-85)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=4.73e-83)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=3.53e-82)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=1.13e-80)
+      [Biological] protein targeting to ER (GO:0045047) (p=3.04e-80)
+      ... and 94 more significant terms
+
+  Overlapping genes in top-k (k_i=14, k_j=69): 10
+    MT-ND3, RPL30, RPL34, RPL35, RPL36, RPL37, RPL37A, RPL38, RPS21, RPS28
+
+  Overlapping GO terms (41):
+    - RNA binding (GO:0003723)
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - asymmetric synapse (GO:0032279)
+    - cell-substrate junction (GO:0030055)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cellular protein metabolic process (GO:0044267)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic side of endoplasmic reticulum membrane (GO:0098554)
+    - cytoplasmic translation (GO:0002181)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    ... and 31 more
+
+  GO term overlap coefficient: 0.7885
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 2986 <-> Feature 3079
+Similarity: 0.7000
+
+  Feature 2986
+    Participation Ratio: 83.6
+    GO terms: 113
+    Top genes (20):
+      ITK: 21.9996
+      CD3E: 21.7713
+      CD3D: 18.7779
+      CD3G: 18.5716
+      LCK: 16.3669
+      GZMK: 16.2364
+      TRAT1: 14.7462
+      IL32: 14.2129
+      SIRPG: 14.2057
+      GZMM: 13.8073
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] T cell receptor complex (GO:0042101) (p=1.04e-17)
+      [Biological] T cell activation (GO:0042110) (p=2.46e-15)
+      [Biological] regulation of immune response (GO:0050776) (p=2.46e-15)
+      [Biological] T cell receptor signaling pathway (GO:0050852) (p=6.65e-13)
+      [Biological] antigen receptor-mediated signaling pathway (GO:0050851) (p=3.36e-12)
+      ... and 108 more significant terms
+
+  Feature 3079
+    Participation Ratio: 16.6
+    GO terms: 140
+    Top genes (20):
+      NKG7: 40.9900
+      GNLY: 29.3652
+      GZMB: 27.8704
+      GZMH: 24.8331
+      CST7: 23.0628
+      PRF1: 20.3972
+      CMC1: 19.7757
+      GZMA: 17.8276
+      KLRD1: 17.5821
+      CCL5: 17.1323
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] cytolytic granule (GO:0044194) (p=3.46e-08)
+      [Cellular] lysosome (GO:0005764) (p=3.29e-04)
+      [Molecular] serine-type endopeptidase activity (GO:0004252) (p=4.15e-04)
+      [Molecular] serine-type peptidase activity (GO:0008236) (p=4.15e-04)
+      [Biological] apoptotic process (GO:0006915) (p=7.28e-04)
+      ... and 135 more significant terms
+
+  Overlapping genes in top-k (k_i=50, k_j=10): 7
+    CCL5, GNLY, GZMA, GZMH, KLRD1, NKG7, PRF1
+
+  Overlapping GO terms (48):
+    - CCR chemokine receptor binding (GO:0048020)
+    - CCR1 chemokine receptor binding (GO:0031726)
+    - CCR5 chemokine receptor binding (GO:0031730)
+    - MHC class I protein complex binding (GO:0023024)
+    - apoptotic process (GO:0006915)
+    - cellular defense response (GO:0006968)
+    - chemokine activity (GO:0008009)
+    - chemokine receptor binding (GO:0042379)
+    - cytolytic granule (GO:0044194)
+    - immunological synapse formation (GO:0001771)
+    ... and 38 more
+
+  GO term overlap coefficient: 0.4248
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 846 <-> Feature 4154
+Similarity: 0.7000
+
+  Feature 846
+    Participation Ratio: 13.8
+    GO terms: 31
+    Top genes (20):
+      EIF1AY: 23.6362
+      ZFY: 23.3768
+      DDX3Y: 23.3445
+      RPS4Y1: 23.1551
+      KDM5D: 22.9216
+      USP9Y: 22.0424
+      UTY: 19.7139
+      LSR: 10.5204
+      CD8A: 10.2966
+      CD8B: 9.3550
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] T cell receptor complex (GO:0042101) (p=2.67e-04)
+      [Molecular] MHC class I protein binding (GO:0042288) (p=6.19e-04)
+      [Molecular] histone demethylase activity (GO:0032452) (p=6.19e-04)
+      [Molecular] MHC protein binding (GO:0042287) (p=6.19e-04)
+      [Biological] histone lysine demethylation (GO:0070076) (p=3.49e-03)
+      ... and 26 more significant terms
+
+  Feature 4154
+    Participation Ratio: 12.7
+    GO terms: 16
+    Top genes (20):
+      TRIB2: 34.4204
+      RPS4Y1: 28.2845
+      DDX3Y: 26.8927
+      USP9Y: 26.6488
+      EIF1AY: 26.6012
+      KDM5D: 26.4457
+      ZFY: 25.6984
+      UTY: 23.8753
+      PCBP1: 22.3645
+      ZMAT3: 20.3851
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] histone demethylase activity (GO:0032452) (p=2.20e-03)
+      [Biological] histone lysine demethylation (GO:0070076) (p=4.21e-03)
+      [Cellular] nucleus (GO:0005634) (p=1.77e-02)
+      [Cellular] intracellular membrane-bounded organelle (GO:0043231) (p=1.83e-02)
+      [Cellular] MLL3/4 complex (GO:0044666) (p=1.83e-02)
+      ... and 11 more significant terms
+
+  Overlapping genes in top-k (k_i=10, k_j=10): 7
+    DDX3Y, EIF1AY, KDM5D, RPS4Y1, USP9Y, UTY, ZFY
+
+  Overlapping GO terms (10):
+    - MLL3/4 complex (GO:0044666)
+    - P granule (GO:0043186)
+    - androgen receptor binding (GO:0050681)
+    - co-SMAD binding (GO:0070410)
+    - germ plasm (GO:0060293)
+    - histone demethylase activity (GO:0032452)
+    - histone demethylase activity (H3-K27 specific) (GO:0071558)
+    - histone demethylase activity (H3-K4 specific) (GO:0032453)
+    - histone demethylase activity (H3-trimethyl-K4 specific) (GO:0034647)
+    - histone lysine demethylation (GO:0070076)
+
+  GO term overlap coefficient: 0.6250
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 710 <-> Feature 846
+Similarity: 0.7000
+
+  Feature 710
+    Participation Ratio: 85.6
+    GO terms: 61
+    Top genes (20):
+      RPS20: 16.8808
+      RPL27: 16.6274
+      DDX3Y: 16.4311
+      ZFY: 16.3107
+      RPL7: 15.9771
+      USP9Y: 15.5419
+      UTY: 15.3998
+      RPS4Y1: 15.2944
+      KDM5D: 15.2641
+      RPL27A: 15.1338
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=3.12e-49)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=6.18e-49)
+      [Biological] protein targeting to ER (GO:0045047) (p=7.18e-48)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=9.34e-47)
+      [Biological] cytoplasmic translation (GO:0002181) (p=1.66e-44)
+      ... and 56 more significant terms
+
+  Feature 846
+    Participation Ratio: 13.8
+    GO terms: 31
+    Top genes (20):
+      EIF1AY: 23.6362
+      ZFY: 23.3768
+      DDX3Y: 23.3445
+      RPS4Y1: 23.1551
+      KDM5D: 22.9216
+      USP9Y: 22.0424
+      UTY: 19.7139
+      LSR: 10.5204
+      CD8A: 10.2966
+      CD8B: 9.3550
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] T cell receptor complex (GO:0042101) (p=2.67e-04)
+      [Molecular] MHC class I protein binding (GO:0042288) (p=6.19e-04)
+      [Molecular] histone demethylase activity (GO:0032452) (p=6.19e-04)
+      [Molecular] MHC protein binding (GO:0042287) (p=6.19e-04)
+      [Biological] histone lysine demethylation (GO:0070076) (p=3.49e-03)
+      ... and 26 more significant terms
+
+  Overlapping genes in top-k (k_i=51, k_j=10): 7
+    DDX3Y, EIF1AY, KDM5D, RPS4Y1, USP9Y, UTY, ZFY
+
+  Overlapping GO terms (2):
+    - histone demethylase activity (GO:0032452)
+    - histone lysine demethylation (GO:0070076)
+
+  GO term overlap coefficient: 0.0645
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 2511 <-> Feature 4314
+Similarity: 0.7000
+
+  Feature 2511
+    Participation Ratio: 11.8
+    GO terms: 16
+    Top genes (20):
+      GABARAP: 32.3413
+      CRIP1: 31.9887
+      EEF1G: 30.9051
+      RPL17: 26.9952
+      POLD4: 22.1068
+      MRPL38: 21.7119
+      C18orf32: 20.9090
+      LSP1: 18.2000
+      TMEM237: 13.6270
+      NDUFA13: 13.0890
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] NADH dehydrogenase activity (GO:0003954) (p=4.47e-02)
+      [Molecular] GABA receptor binding (GO:0050811) (p=4.47e-02)
+      [Molecular] DNA-directed DNA polymerase activity (GO:0003887) (p=4.47e-02)
+      [Molecular] DNA polymerase activity (GO:0034061) (p=4.47e-02)
+      [Molecular] beta-tubulin binding (GO:0048487) (p=4.47e-02)
+      ... and 11 more significant terms
+
+  Feature 4314
+    Participation Ratio: 51.2
+    GO terms: 82
+    Top genes (20):
+      EEF1G: 19.6882
+      GABARAP: 18.2155
+      C18orf32: 17.6678
+      RPL36A: 15.8865
+      POLD4: 15.2473
+      MRPL38: 14.9877
+      NDUFA13: 14.8341
+      BCKDHA: 14.7135
+      S100A6: 13.2090
+      RPL17: 13.1920
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] arachidonic acid binding (GO:0050544) (p=1.03e-03)
+      [Molecular] icosatetraenoic acid binding (GO:0050543) (p=1.03e-03)
+      [Molecular] icosanoid binding (GO:0050542) (p=1.03e-03)
+      [Cellular] respiratory chain complex I (GO:0045271) (p=1.11e-03)
+      [Cellular] mitochondrial respiratory chain complex I (GO:0005747) (p=1.11e-03)
+      ... and 77 more significant terms
+
+  Overlapping genes in top-k (k_i=10, k_j=30): 7
+    C18orf32, EEF1G, GABARAP, MRPL38, NDUFA13, POLD4, RPL17
+
+  Overlapping GO terms (9):
+    - NADH dehydrogenase (quinone) activity (GO:0050136)
+    - NADH dehydrogenase (ubiquinone) activity (GO:0008137)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    - large ribosomal subunit (GO:0015934)
+    - mitochondrial inner membrane (GO:0005743)
+    - mitochondrial membrane (GO:0031966)
+    - mitochondrial respiratory chain complex I (GO:0005747)
+    - organelle inner membrane (GO:0019866)
+    - respiratory chain complex I (GO:0045271)
+
+  GO term overlap coefficient: 0.5625
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 7 <-> Feature 2326
+Similarity: 0.7000
+
+  Feature 7
+    Participation Ratio: 18.2
+    GO terms: 69
+    Top genes (20):
+      RPS11: 37.0779
+      RPS20: 33.7629
+      RPL23: 32.5651
+      RPL13A: 25.4210
+      RPL27A: 24.7792
+      RPL7: 22.4536
+      RPL31: 21.9572
+      NAP1L1: 20.9445
+      EIF3E: 17.7097
+      RPS17: 17.7066
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=3.25e-18)
+      [Biological] nuclear-transcribed mRNA catabolic process (GO:0000956) (p=7.54e-17)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=1.21e-16)
+      [Biological] cytoplasmic translation (GO:0002181) (p=1.21e-16)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=1.21e-16)
+      ... and 64 more significant terms
+
+  Feature 2326
+    Participation Ratio: 96.2
+    GO terms: 72
+    Top genes (20):
+      RPL31: 16.8154
+      RPL7: 16.0410
+      RPS20: 15.2433
+      RPS25: 15.0503
+      RPLP0: 15.0070
+      RPL21: 14.2886
+      RPL6: 13.4001
+      RPL27: 13.2807
+      MT-ND4L: 13.0079
+      RPS3A: 12.7022
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=1.48e-88)
+      [Biological] cytoplasmic translation (GO:0002181) (p=4.61e-88)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=5.55e-88)
+      [Biological] protein targeting to ER (GO:0045047) (p=5.99e-86)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=6.40e-84)
+      ... and 67 more significant terms
+
+  Overlapping genes in top-k (k_i=10, k_j=57): 7
+    RPL13A, RPL23, RPL27A, RPL31, RPL7, RPS17, RPS20
+
+  Overlapping GO terms (44):
+    - RNA binding (GO:0003723)
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - cell-substrate junction (GO:0030055)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cellular protein metabolic process (GO:0044267)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic translation (GO:0002181)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    - cytosolic small ribosomal subunit (GO:0022627)
+    - focal adhesion (GO:0005925)
+    ... and 34 more
+
+  GO term overlap coefficient: 0.6377
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 846 <-> Feature 2454
+Similarity: 0.7000
+
+  Feature 846
+    Participation Ratio: 13.8
+    GO terms: 31
+    Top genes (20):
+      EIF1AY: 23.6362
+      ZFY: 23.3768
+      DDX3Y: 23.3445
+      RPS4Y1: 23.1551
+      KDM5D: 22.9216
+      USP9Y: 22.0424
+      UTY: 19.7139
+      LSR: 10.5204
+      CD8A: 10.2966
+      CD8B: 9.3550
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] T cell receptor complex (GO:0042101) (p=2.67e-04)
+      [Molecular] MHC class I protein binding (GO:0042288) (p=6.19e-04)
+      [Molecular] histone demethylase activity (GO:0032452) (p=6.19e-04)
+      [Molecular] MHC protein binding (GO:0042287) (p=6.19e-04)
+      [Biological] histone lysine demethylation (GO:0070076) (p=3.49e-03)
+      ... and 26 more significant terms
+
+  Feature 2454
+    Participation Ratio: 79.0
+    GO terms: 31
+    Top genes (20):
+      RPS4Y1: 13.4327
+      DDX3Y: 12.8515
+      KDM5D: 12.7647
+      ZFY: 12.2649
+      USP9Y: 12.2563
+      TBCA: 12.0420
+      EIF1AY: 11.8650
+      FARS2: 10.6543
+      TAF10: 10.6223
+      ZMYND11: 9.8848
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] U6 snRNP (GO:0005688) (p=7.27e-08)
+      [Cellular] spliceosomal tri-snRNP complex (GO:0097526) (p=2.87e-07)
+      [Cellular] U4/U6 x U5 tri-snRNP complex (GO:0046540) (p=2.87e-07)
+      [Cellular] U2-type precatalytic spliceosome (GO:0071005) (p=1.79e-06)
+      [Cellular] spliceosomal snRNP complex (GO:0097525) (p=1.79e-06)
+      ... and 26 more significant terms
+
+  Overlapping genes in top-k (k_i=10, k_j=47): 7
+    DDX3Y, EIF1AY, KDM5D, RPS4Y1, USP9Y, UTY, ZFY
+
+  Overlapping GO terms (5):
+    - MLL3/4 complex (GO:0044666)
+    - histone H3-K27 demethylation (GO:0071557)
+    - histone demethylase activity (GO:0032452)
+    - histone demethylase activity (H3-K27 specific) (GO:0071558)
+    - histone lysine demethylation (GO:0070076)
+
+  GO term overlap coefficient: 0.1613
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 4105 <-> Feature 4154
+Similarity: 0.7000
+
+  Feature 4105
+    Participation Ratio: 8.9
+    GO terms: 39
+    Top genes (20):
+      RPS4Y1: 41.8131
+      ZFY: 39.1368
+      DDX3Y: 37.9778
+      KDM5D: 37.4708
+      USP9Y: 36.8128
+      EIF1AY: 36.4048
+      UTY: 31.5367
+      CD99: 28.8070
+      DNAJC21: 16.1159
+      RPL17: 6.7134
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] histone demethylase activity (GO:0032452) (p=1.60e-03)
+      [Biological] histone lysine demethylation (GO:0070076) (p=3.12e-03)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=1.19e-02)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=1.19e-02)
+      [Biological] protein targeting to ER (GO:0045047) (p=1.19e-02)
+      ... and 34 more significant terms
+
+  Feature 4154
+    Participation Ratio: 12.7
+    GO terms: 16
+    Top genes (20):
+      TRIB2: 34.4204
+      RPS4Y1: 28.2845
+      DDX3Y: 26.8927
+      USP9Y: 26.6488
+      EIF1AY: 26.6012
+      KDM5D: 26.4457
+      ZFY: 25.6984
+      UTY: 23.8753
+      PCBP1: 22.3645
+      ZMAT3: 20.3851
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] histone demethylase activity (GO:0032452) (p=2.20e-03)
+      [Biological] histone lysine demethylation (GO:0070076) (p=4.21e-03)
+      [Cellular] nucleus (GO:0005634) (p=1.77e-02)
+      [Cellular] intracellular membrane-bounded organelle (GO:0043231) (p=1.83e-02)
+      [Cellular] MLL3/4 complex (GO:0044666) (p=1.83e-02)
+      ... and 11 more significant terms
+
+  Overlapping genes in top-k (k_i=10, k_j=10): 7
+    DDX3Y, EIF1AY, KDM5D, RPS4Y1, USP9Y, UTY, ZFY
+
+  Overlapping GO terms (15):
+    - MLL3/4 complex (GO:0044666)
+    - P granule (GO:0043186)
+    - RNA binding (GO:0003723)
+    - androgen receptor binding (GO:0050681)
+    - co-SMAD binding (GO:0070410)
+    - cytosolic small ribosomal subunit (GO:0022627)
+    - germ plasm (GO:0060293)
+    - histone demethylase activity (GO:0032452)
+    - histone demethylase activity (H3-K27 specific) (GO:0071558)
+    - histone demethylase activity (H3-K4 specific) (GO:0032453)
+    ... and 5 more
+
+  GO term overlap coefficient: 0.9375
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 4105 <-> Feature 4553
+Similarity: 0.7000
+
+  Feature 4105
+    Participation Ratio: 8.9
+    GO terms: 39
+    Top genes (20):
+      RPS4Y1: 41.8131
+      ZFY: 39.1368
+      DDX3Y: 37.9778
+      KDM5D: 37.4708
+      USP9Y: 36.8128
+      EIF1AY: 36.4048
+      UTY: 31.5367
+      CD99: 28.8070
+      DNAJC21: 16.1159
+      RPL17: 6.7134
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] histone demethylase activity (GO:0032452) (p=1.60e-03)
+      [Biological] histone lysine demethylation (GO:0070076) (p=3.12e-03)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=1.19e-02)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=1.19e-02)
+      [Biological] protein targeting to ER (GO:0045047) (p=1.19e-02)
+      ... and 34 more significant terms
+
+  Feature 4553
+    Participation Ratio: 8.4
+    GO terms: 23
+    Top genes (20):
+      UTY: 38.8585
+      ZFY: 33.7638
+      RPS4Y1: 31.4191
+      KDM5D: 31.0988
+      DDX3Y: 30.5516
+      EIF1AY: 30.5301
+      USP9Y: 29.0214
+      RCC1: 10.9227
+      CPNE5: 9.2386
+      DUSP2: 8.0734
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] histone demethylase activity (GO:0032452) (p=2.70e-03)
+      [Biological] histone lysine demethylation (GO:0070076) (p=4.21e-03)
+      [Cellular] nucleus (GO:0005634) (p=2.06e-02)
+      [Cellular] intracellular membrane-bounded organelle (GO:0043231) (p=2.06e-02)
+      [Cellular] nuclear membrane (GO:0031965) (p=2.06e-02)
+      ... and 18 more significant terms
+
+  Overlapping genes in top-k (k_i=10, k_j=10): 7
+    DDX3Y, EIF1AY, KDM5D, RPS4Y1, USP9Y, UTY, ZFY
+
+  Overlapping GO terms (14):
+    - MLL3/4 complex (GO:0044666)
+    - P granule (GO:0043186)
+    - androgen receptor binding (GO:0050681)
+    - co-SMAD binding (GO:0070410)
+    - cytosolic small ribosomal subunit (GO:0022627)
+    - germ plasm (GO:0060293)
+    - histone demethylase activity (GO:0032452)
+    - histone demethylase activity (H3-K27 specific) (GO:0071558)
+    - histone demethylase activity (H3-K4 specific) (GO:0032453)
+    - histone demethylase activity (H3-trimethyl-K4 specific) (GO:0034647)
+    ... and 4 more
+
+  GO term overlap coefficient: 0.6087
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 710 <-> Feature 4553
+Similarity: 0.7000
+
+  Feature 710
+    Participation Ratio: 85.6
+    GO terms: 61
+    Top genes (20):
+      RPS20: 16.8808
+      RPL27: 16.6274
+      DDX3Y: 16.4311
+      ZFY: 16.3107
+      RPL7: 15.9771
+      USP9Y: 15.5419
+      UTY: 15.3998
+      RPS4Y1: 15.2944
+      KDM5D: 15.2641
+      RPL27A: 15.1338
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=3.12e-49)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=6.18e-49)
+      [Biological] protein targeting to ER (GO:0045047) (p=7.18e-48)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=9.34e-47)
+      [Biological] cytoplasmic translation (GO:0002181) (p=1.66e-44)
+      ... and 56 more significant terms
+
+  Feature 4553
+    Participation Ratio: 8.4
+    GO terms: 23
+    Top genes (20):
+      UTY: 38.8585
+      ZFY: 33.7638
+      RPS4Y1: 31.4191
+      KDM5D: 31.0988
+      DDX3Y: 30.5516
+      EIF1AY: 30.5301
+      USP9Y: 29.0214
+      RCC1: 10.9227
+      CPNE5: 9.2386
+      DUSP2: 8.0734
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] histone demethylase activity (GO:0032452) (p=2.70e-03)
+      [Biological] histone lysine demethylation (GO:0070076) (p=4.21e-03)
+      [Cellular] nucleus (GO:0005634) (p=2.06e-02)
+      [Cellular] intracellular membrane-bounded organelle (GO:0043231) (p=2.06e-02)
+      [Cellular] nuclear membrane (GO:0031965) (p=2.06e-02)
+      ... and 18 more significant terms
+
+  Overlapping genes in top-k (k_i=51, k_j=10): 7
+    DDX3Y, EIF1AY, KDM5D, RPS4Y1, USP9Y, UTY, ZFY
+
+  Overlapping GO terms (6):
+    - cytosolic small ribosomal subunit (GO:0022627)
+    - histone demethylase activity (GO:0032452)
+    - histone lysine demethylation (GO:0070076)
+    - intracellular membrane-bounded organelle (GO:0043231)
+    - nucleus (GO:0005634)
+    - small ribosomal subunit (GO:0015935)
+
+  GO term overlap coefficient: 0.2609
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 2511 <-> Feature 3498
+Similarity: 0.7000
+
+  Feature 2511
+    Participation Ratio: 11.8
+    GO terms: 16
+    Top genes (20):
+      GABARAP: 32.3413
+      CRIP1: 31.9887
+      EEF1G: 30.9051
+      RPL17: 26.9952
+      POLD4: 22.1068
+      MRPL38: 21.7119
+      C18orf32: 20.9090
+      LSP1: 18.2000
+      TMEM237: 13.6270
+      NDUFA13: 13.0890
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] NADH dehydrogenase activity (GO:0003954) (p=4.47e-02)
+      [Molecular] GABA receptor binding (GO:0050811) (p=4.47e-02)
+      [Molecular] DNA-directed DNA polymerase activity (GO:0003887) (p=4.47e-02)
+      [Molecular] DNA polymerase activity (GO:0034061) (p=4.47e-02)
+      [Molecular] beta-tubulin binding (GO:0048487) (p=4.47e-02)
+      ... and 11 more significant terms
+
+  Feature 3498
+    Participation Ratio: 46.7
+    GO terms: 31
+    Top genes (20):
+      RPL17: 26.0938
+      EEF1G: 24.9592
+      RPS10: 23.8059
+      RPL36A: 22.9139
+      MRPL38: 21.9984
+      C18orf32: 21.5949
+      SARNP: 20.5638
+      NDUFA13: 20.2689
+      GABARAP: 18.8087
+      BCKDHA: 18.5651
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] respiratory chain complex I (GO:0045271) (p=5.71e-04)
+      [Cellular] mitochondrial respiratory chain complex I (GO:0005747) (p=5.71e-04)
+      [Biological] mitochondrial electron transport, NADH to ubiquinone (GO:0006120) (p=4.04e-03)
+      [Biological] cellular macromolecule biosynthetic process (GO:0034645) (p=4.04e-03)
+      [Biological] mitochondrial respiratory chain complex I assembly (GO:0032981) (p=4.04e-03)
+      ... and 26 more significant terms
+
+  Overlapping genes in top-k (k_i=10, k_j=27): 7
+    C18orf32, EEF1G, GABARAP, MRPL38, NDUFA13, POLD4, RPL17
+
+  Overlapping GO terms (9):
+    - NADH dehydrogenase (quinone) activity (GO:0050136)
+    - NADH dehydrogenase (ubiquinone) activity (GO:0008137)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    - large ribosomal subunit (GO:0015934)
+    - mitochondrial inner membrane (GO:0005743)
+    - mitochondrial membrane (GO:0031966)
+    - mitochondrial respiratory chain complex I (GO:0005747)
+    - organelle inner membrane (GO:0019866)
+    - respiratory chain complex I (GO:0045271)
+
+  GO term overlap coefficient: 0.5625
+
+--------------------------------------------------------------------------------
+
+================================================================================
+MEDIUM SIMILARITY PAIRS (n=10)
+================================================================================
+
+
+Pair: Feature 740 <-> Feature 1086
+Similarity: 0.2979
+
+  Feature 740
+    Participation Ratio: 1117.9
+    GO terms: 85
+    Top genes (20):
+      IL18RAP: 7.5537
+      CD28: 6.8905
+      CCR6: 6.8221
+      TNFRSF18: 6.6899
+      ALOX5AP: 6.3875
+      AQP3: 6.0845
+      HOPX: 6.0025
+      HPGD: 5.9122
+      IL23R: 5.8483
+      FBLN7: 5.7510
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] chemokine binding (GO:0019956) (p=1.65e-06)
+      [Molecular] C-C chemokine receptor activity (GO:0016493) (p=5.60e-06)
+      [Molecular] C-C chemokine binding (GO:0019957) (p=5.60e-06)
+      [Molecular] chemokine receptor activity (GO:0004950) (p=6.45e-06)
+      [Biological] positive regulation of cytokine production (GO:0001819) (p=1.12e-04)
+      ... and 80 more significant terms
+
+  Feature 1086
+    Participation Ratio: 78.5
+    GO terms: 11
+    Top genes (20):
+      CYB561: 23.5276
+      NT5E: 19.4803
+      NPDC1: 19.1871
+      SATB1: 17.1828
+      KLRG1: 16.4359
+      PPP2R2B: 16.3477
+      PDZD4: 16.2042
+      NSG1: 15.3029
+      LTC4S: 14.6178
+      ABCB1: 14.5790
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] prostaglandin E receptor activity (GO:0004957) (p=4.63e-03)
+      [Molecular] prostaglandin receptor activity (GO:0004955) (p=1.03e-02)
+      [Biological] positive regulation of autophagosome maturation (GO:1901098) (p=1.73e-02)
+      [Biological] lipoxin metabolic process (GO:2001300) (p=1.73e-02)
+      [Biological] lipoxin biosynthetic process (GO:2001301) (p=1.73e-02)
+      ... and 6 more significant terms
+
+  Overlapping genes in top-k (k_i=100, k_j=47): 14
+    CCR10, CFH, CYB561, FXYD7, HOPX, HPGD, IL23R, NCR3, NSG1, PI16, PLCB1, PTGER2, SLC4A10, TNFRSF18
+
+  Overlapping GO terms (6):
+    - lipoxin biosynthetic process (GO:2001301)
+    - lipoxin metabolic process (GO:2001300)
+    - lipoxygenase pathway (GO:0019372)
+    - prostaglandin E receptor activity (GO:0004957)
+    - prostaglandin receptor activity (GO:0004955)
+    - regulation of immune response (GO:0050776)
+
+  GO term overlap coefficient: 0.5455
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 1610 <-> Feature 1790
+Similarity: 0.2963
+
+  Feature 1610
+    Participation Ratio: 45.1
+    GO terms: 52
+    Top genes (20):
+      ERAP1: 22.7109
+      STAT2: 22.2890
+      SLFN12L: 16.2794
+      MPHOSPH9: 16.1234
+      HELZ2: 15.7760
+      ANAPC7: 15.0709
+      RNF213: 14.9583
+      DDX60L: 14.9468
+      TRIM25: 14.4888
+      PARP14: 14.4244
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] protein poly-ADP-ribosylation (GO:0070212) (p=7.28e-05)
+      [Biological] protein mono-ADP-ribosylation (GO:0140289) (p=7.28e-05)
+      [Molecular] NAD+ ADP-ribosyltransferase activity (GO:0003950) (p=3.41e-04)
+      [Molecular] pentosyltransferase activity (GO:0016763) (p=5.47e-04)
+      [Biological] modification-dependent protein catabolic process (GO:0019941) (p=5.95e-04)
+      ... and 47 more significant terms
+
+  Feature 1790
+    Participation Ratio: 120.6
+    GO terms: 181
+    Top genes (20):
+      OAS2: 25.3751
+      BTN3A3: 23.8739
+      BTN3A2: 21.7617
+      APOL2: 20.4281
+      GBP3: 20.0735
+      HERC6: 19.8630
+      IL12RB1: 19.4605
+      OAS1: 19.4101
+      OAS3: 19.1862
+      IFIT3: 18.6422
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] cellular response to type I interferon (GO:0071357) (p=2.50e-21)
+      [Biological] type I interferon signaling pathway (GO:0060337) (p=2.50e-21)
+      [Biological] defense response to symbiont (GO:0140546) (p=1.07e-18)
+      [Biological] defense response to virus (GO:0051607) (p=2.58e-18)
+      [Biological] negative regulation of viral process (GO:0048525) (p=1.94e-15)
+      ... and 176 more significant terms
+
+  Overlapping genes in top-k (k_i=27, k_j=72): 8
+    DDX58, DDX60L, DTX3L, HELZ2, PARP10, SAMD9L, STAT2, TRIM25
+
+  Overlapping GO terms (23):
+    - DNA synthesis involved in DNA repair (GO:0000731)
+    - NAD+ ADP-ribosyltransferase activity (GO:0003950)
+    - RIG-I signaling pathway (GO:0039529)
+    - STAT family protein binding (GO:0097677)
+    - cytoplasmic pattern recognition receptor signaling pathway in response to virus (GO:0039528)
+    - negative regulation of cytokine-mediated signaling pathway (GO:0001960)
+    - negative regulation of type I interferon production (GO:0032480)
+    - negative regulation of viral genome replication (GO:0045071)
+    - negative regulation of viral process (GO:0048525)
+    - pentosyltransferase activity (GO:0016763)
+    ... and 13 more
+
+  GO term overlap coefficient: 0.4423
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 1446 <-> Feature 1988
+Similarity: 0.2963
+
+  Feature 1446
+    Participation Ratio: 45.8
+    GO terms: 46
+    Top genes (20):
+      CEBPB: 20.0660
+      LST1: 19.1078
+      PPP2R5C: 18.7429
+      ARF6: 17.8776
+      TPM3: 17.7229
+      RNF213: 16.3521
+      MAF: 16.0680
+      NUTF2: 15.5598
+      AIF1: 15.0423
+      GTF3A: 14.6398
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] actin filament (GO:0005884) (p=1.48e-04)
+      [Cellular] polymeric cytoskeletal fiber (GO:0099513) (p=6.67e-03)
+      [Cellular] cytoplasmic vesicle lumen (GO:0060205) (p=6.67e-03)
+      [Cellular] ficolin-1-rich granule lumen (GO:1904813) (p=6.67e-03)
+      [Cellular] nucleus (GO:0005634) (p=6.67e-03)
+      ... and 41 more significant terms
+
+  Feature 1988
+    Participation Ratio: 282.8
+    GO terms: 490
+    Top genes (20):
+      FKBP1A: 11.3645
+      ARPC3: 10.9518
+      CFL1: 10.7888
+      SNX3: 10.5201
+      RHOA: 9.1976
+      CDC42: 9.0655
+      ARPC2: 8.9287
+      EDF1: 8.6308
+      GRN: 8.2485
+      GNAI2: 8.1724
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] neutrophil degranulation (GO:0043312) (p=2.53e-23)
+      [Biological] neutrophil activation involved in immune response (GO:0002283) (p=2.53e-23)
+      [Biological] neutrophil mediated immunity (GO:0002446) (p=2.53e-23)
+      [Cellular] ficolin-1-rich granule (GO:0101002) (p=5.13e-15)
+      [Cellular] lysosome (GO:0005764) (p=1.44e-11)
+      ... and 485 more significant terms
+
+  Overlapping genes in top-k (k_i=27, k_j=100): 8
+    AIF1, COTL1, CSTB, ENO1, LCP1, LST1, PSME2, TPM3
+
+  Overlapping GO terms (24):
+    - GTPase binding (GO:0051020)
+    - actin crosslink formation (GO:0051764)
+    - actin cytoskeleton (GO:0015629)
+    - actin filament (GO:0005884)
+    - actin filament bundle assembly (GO:0051017)
+    - actin filament bundle organization (GO:0061572)
+    - actin filament organization (GO:0007015)
+    - cellular component assembly (GO:0022607)
+    - cellular response to interleukin-12 (GO:0071349)
+    - cortical cytoskeleton organization (GO:0030865)
+    ... and 14 more
+
+  GO term overlap coefficient: 0.5217
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 710 <-> Feature 3498
+Similarity: 0.2963
+
+  Feature 710
+    Participation Ratio: 85.6
+    GO terms: 61
+    Top genes (20):
+      RPS20: 16.8808
+      RPL27: 16.6274
+      DDX3Y: 16.4311
+      ZFY: 16.3107
+      RPL7: 15.9771
+      USP9Y: 15.5419
+      UTY: 15.3998
+      RPS4Y1: 15.2944
+      KDM5D: 15.2641
+      RPL27A: 15.1338
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=3.12e-49)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=6.18e-49)
+      [Biological] protein targeting to ER (GO:0045047) (p=7.18e-48)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=9.34e-47)
+      [Biological] cytoplasmic translation (GO:0002181) (p=1.66e-44)
+      ... and 56 more significant terms
+
+  Feature 3498
+    Participation Ratio: 46.7
+    GO terms: 31
+    Top genes (20):
+      RPL17: 26.0938
+      EEF1G: 24.9592
+      RPS10: 23.8059
+      RPL36A: 22.9139
+      MRPL38: 21.9984
+      C18orf32: 21.5949
+      SARNP: 20.5638
+      NDUFA13: 20.2689
+      GABARAP: 18.8087
+      BCKDHA: 18.5651
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] respiratory chain complex I (GO:0045271) (p=5.71e-04)
+      [Cellular] mitochondrial respiratory chain complex I (GO:0005747) (p=5.71e-04)
+      [Biological] mitochondrial electron transport, NADH to ubiquinone (GO:0006120) (p=4.04e-03)
+      [Biological] cellular macromolecule biosynthetic process (GO:0034645) (p=4.04e-03)
+      [Biological] mitochondrial respiratory chain complex I assembly (GO:0032981) (p=4.04e-03)
+      ... and 26 more significant terms
+
+  Overlapping genes in top-k (k_i=51, k_j=27): 8
+    BCKDHA, C18orf32, CSNK2B, NDUFC2, POLD4, RPL36A, RPS10, SARNP
+
+  Overlapping GO terms (14):
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic translation (GO:0002181)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    - gene expression (GO:0010467)
+    - large ribosomal subunit (GO:0015934)
+    - mitochondrial alpha-ketoglutarate dehydrogenase complex (GO:0005947)
+    - nuclear-transcribed mRNA catabolic process (GO:0000956)
+    - nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184)
+    ... and 4 more
+
+  GO term overlap coefficient: 0.4516
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 370 <-> Feature 1719
+Similarity: 0.2963
+
+  Feature 370
+    Participation Ratio: 89.8
+    GO terms: 9
+    Top genes (20):
+      ITGA2B: 19.2701
+      RAB27B: 17.7928
+      CMTM5: 17.5308
+      RAB13: 17.0532
+      TUBB1: 16.9137
+      PTGS1: 16.4729
+      ABCC3: 16.1777
+      ARHGAP18: 14.6928
+      F2R: 13.9938
+      TREML1: 13.9367
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] platelet degranulation (GO:0002576) (p=2.54e-05)
+      [Biological] regulated exocytosis (GO:0045055) (p=1.54e-04)
+      [Cellular] platelet alpha granule (GO:0031091) (p=3.91e-04)
+      [Biological] regulation of megakaryocyte differentiation (GO:0045652) (p=2.80e-03)
+      [Biological] regulation of myeloid cell differentiation (GO:0045637) (p=5.26e-03)
+      ... and 4 more significant terms
+
+  Feature 1719
+    Participation Ratio: 45.1
+    GO terms: 28
+    Top genes (20):
+      ITGA2B: 21.2448
+      GP9: 17.2899
+      SPINK2: 16.9634
+      CMTM5: 15.7912
+      PF4: 15.3432
+      PPBP: 14.9591
+      TUBB1: 14.4567
+      ID1: 14.3663
+      CLEC11A: 12.7894
+      TREML1: 12.1971
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] pre-mRNA intronic binding (GO:0097157) (p=2.49e-03)
+      [Molecular] CXCR chemokine receptor binding (GO:0045236) (p=6.01e-03)
+      [Biological] regulation of megakaryocyte differentiation (GO:0045652) (p=6.67e-03)
+      [Biological] positive regulation of macrophage differentiation (GO:0045651) (p=6.67e-03)
+      [Biological] regulation of myeloid cell differentiation (GO:0045637) (p=6.67e-03)
+      ... and 23 more significant terms
+
+  Overlapping genes in top-k (k_i=53, k_j=27): 8
+    CMTM5, GP9, ITGA2B, NFE2, PF4, PPBP, TREML1, TUBB1
+
+  Overlapping GO terms (6):
+    - platelet alpha granule (GO:0031091)
+    - platelet alpha granule lumen (GO:0031093)
+    - platelet degranulation (GO:0002576)
+    - regulated exocytosis (GO:0045055)
+    - regulation of megakaryocyte differentiation (GO:0045652)
+    - regulation of myeloid cell differentiation (GO:0045637)
+
+  GO term overlap coefficient: 0.6667
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 1719 <-> Feature 2677
+Similarity: 0.2963
+
+  Feature 1719
+    Participation Ratio: 45.1
+    GO terms: 28
+    Top genes (20):
+      ITGA2B: 21.2448
+      GP9: 17.2899
+      SPINK2: 16.9634
+      CMTM5: 15.7912
+      PF4: 15.3432
+      PPBP: 14.9591
+      TUBB1: 14.4567
+      ID1: 14.3663
+      CLEC11A: 12.7894
+      TREML1: 12.1971
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] pre-mRNA intronic binding (GO:0097157) (p=2.49e-03)
+      [Molecular] CXCR chemokine receptor binding (GO:0045236) (p=6.01e-03)
+      [Biological] regulation of megakaryocyte differentiation (GO:0045652) (p=6.67e-03)
+      [Biological] positive regulation of macrophage differentiation (GO:0045651) (p=6.67e-03)
+      [Biological] regulation of myeloid cell differentiation (GO:0045637) (p=6.67e-03)
+      ... and 23 more significant terms
+
+  Feature 2677
+    Participation Ratio: 49.3
+    GO terms: 3
+    Top genes (20):
+      GNG11: 22.9795
+      PF4: 20.8517
+      TUBB1: 20.0956
+      GMFG: 17.4590
+      ACRBP: 16.8684
+      APOM: 15.0027
+      NRGN: 14.9759
+      PPBP: 14.9703
+      ANKRA2: 14.3566
+      GP9: 13.1788
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] CXCR chemokine receptor binding (GO:0045236) (p=1.53e-02)
+      [Molecular] chemokine activity (GO:0008009) (p=4.45e-02)
+      [Molecular] chemokine receptor binding (GO:0042379) (p=4.45e-02)
+
+  Overlapping genes in top-k (k_i=27, k_j=29): 8
+    CMTM5, GP9, MAP3K7CL, NRGN, PF4, PPBP, TREML1, TUBB1
+
+  Overlapping GO terms (3):
+    - CXCR chemokine receptor binding (GO:0045236)
+    - chemokine activity (GO:0008009)
+    - chemokine receptor binding (GO:0042379)
+
+  GO term overlap coefficient: 1.0000
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 3133 <-> Feature 5007
+Similarity: 0.2955
+
+  Feature 3133
+    Participation Ratio: 116.5
+    GO terms: 99
+    Top genes (20):
+      RPL24: 19.3103
+      RPL37: 18.2950
+      MT-CO3: 17.7960
+      EEF1A1: 15.7629
+      RPL35A: 15.0932
+      RPL15: 14.8327
+      RPL10A: 14.8225
+      RPS7: 14.6148
+      RPL37A: 14.4570
+      RPL22: 14.2612
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] cytoplasmic translation (GO:0002181) (p=9.45e-85)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=4.73e-83)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=3.53e-82)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=1.13e-80)
+      [Biological] protein targeting to ER (GO:0045047) (p=3.04e-80)
+      ... and 94 more significant terms
+
+  Feature 5007
+    Participation Ratio: 73.8
+    GO terms: 93
+    Top genes (20):
+      ATP6V0E1: 20.1371
+      ATP6V1G1: 18.0013
+      RPL19: 16.4570
+      PSMA7: 16.3873
+      RPL22: 15.6808
+      SEC62: 15.0159
+      RPL6: 14.8987
+      MAPK6: 14.2561
+      YME1L1: 14.1687
+      RPL23: 13.9250
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] cytoplasmic translation (GO:0002181) (p=6.62e-27)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=6.62e-27)
+      [Biological] protein targeting to ER (GO:0045047) (p=2.38e-26)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=2.41e-25)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=9.67e-24)
+      ... and 88 more significant terms
+
+  Overlapping genes in top-k (k_i=69, k_j=44): 13
+    RPL19, RPL22, RPL24, RPL27, RPL37, RPL37A, RPL4, RPL5, RPL6, RPS16, RPS21, RPS25, RPS7
+
+  Overlapping GO terms (47):
+    - RNA binding (GO:0003723)
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - cell-substrate junction (GO:0030055)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cellular protein metabolic process (GO:0044267)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic side of endoplasmic reticulum membrane (GO:0098554)
+    - cytoplasmic translation (GO:0002181)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    - cytosolic small ribosomal subunit (GO:0022627)
+    ... and 37 more
+
+  GO term overlap coefficient: 0.5054
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 16 <-> Feature 4139
+Similarity: 0.2941
+
+  Feature 16
+    Participation Ratio: 57.4
+    GO terms: 73
+    Top genes (20):
+      SERBP1: 26.2610
+      PDIA3: 25.8684
+      DEK: 20.2185
+      HNRNPA3: 20.2180
+      HNRNPH3: 19.3358
+      SNRPB: 18.9259
+      HMGN1: 18.2871
+      CALR: 18.1352
+      HSPA9: 17.8204
+      MORF4L1: 16.5769
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] RNA binding (GO:0003723) (p=1.72e-14)
+      [Cellular] nucleus (GO:0005634) (p=2.56e-09)
+      [Biological] RNA splicing, via transesterification reactions with bulged adenosine as nucleophile (GO:0000377) (p=3.57e-09)
+      [Biological] mRNA splicing, via spliceosome (GO:0000398) (p=4.25e-09)
+      [Biological] mRNA processing (GO:0006397) (p=6.91e-09)
+      ... and 68 more significant terms
+
+  Feature 4139
+    Participation Ratio: 28.6
+    GO terms: 28
+    Top genes (20):
+      CIRBP: 23.9158
+      CALR: 23.1671
+      CD37: 21.2064
+      ATP6V1G1: 17.7240
+      MZT1: 17.0880
+      HMGN1: 14.9196
+      SUMO2: 13.9529
+      NCL: 13.3478
+      SERBP1: 13.0862
+      HNRNPA1: 13.0304
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] positive regulation of RNA splicing (GO:0033120) (p=6.08e-04)
+      [Molecular] mRNA binding (GO:0003729) (p=2.43e-03)
+      [Molecular] RNA binding (GO:0003723) (p=2.43e-03)
+      [Biological] regulation of mRNA splicing, via spliceosome (GO:0048024) (p=7.70e-03)
+      [Biological] positive regulation of mRNA splicing, via spliceosome (GO:0048026) (p=9.25e-03)
+      ... and 23 more significant terms
+
+  Overlapping genes in top-k (k_i=34, k_j=17): 5
+    CALR, HMGN1, NCL, SERBP1, SET
+
+  Overlapping GO terms (8):
+    - RNA binding (GO:0003723)
+    - intracellular membrane-bounded organelle (GO:0043231)
+    - mRNA 3'-UTR binding (GO:0003730)
+    - mRNA binding (GO:0003729)
+    - nucleus (GO:0005634)
+    - regulation of mRNA splicing, via spliceosome (GO:0048024)
+    - regulation of mRNA stability (GO:0043488)
+    - regulation of translation (GO:0006417)
+
+  GO term overlap coefficient: 0.2857
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 1027 <-> Feature 4296
+Similarity: 0.2941
+
+  Feature 1027
+    Participation Ratio: 39.3
+    GO terms: 4
+    Top genes (20):
+      CCZ1B: 26.6625
+      CCZ1: 23.3368
+      CDK11B: 20.5445
+      NIPA1: 18.7074
+      NOMO1: 17.9865
+      DNM2: 15.9701
+      NPIPA1: 15.6201
+      RNF126: 14.8602
+      CDK11A: 14.5233
+      CBWD1: 13.2469
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] cyclin-dependent protein kinase activity (GO:0097472) (p=7.53e-05)
+      [Molecular] cyclin-dependent protein serine/threonine kinase activity (GO:0004693) (p=7.53e-05)
+      [Biological] regulation of mRNA metabolic process (GO:1903311) (p=2.93e-02)
+      [Molecular] purine ribonucleoside triphosphate binding (GO:0035639) (p=3.74e-02)
+
+  Feature 4296
+    Participation Ratio: 29.8
+    GO terms: 75
+    Top genes (20):
+      SMN1: 25.0094
+      CDK11B: 20.9137
+      SRGAP2: 20.6549
+      SMN2: 20.3296
+      AGAP6: 19.5131
+      CCZ1B: 18.1125
+      CCZ1: 16.3278
+      CDK11A: 16.0380
+      ICOSLG: 15.0463
+      NBPF12: 14.6815
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] cyclin-dependent protein kinase activity (GO:0097472) (p=1.49e-03)
+      [Molecular] cyclin-dependent protein serine/threonine kinase activity (GO:0004693) (p=1.49e-03)
+      [Molecular] nuclear localization sequence binding (GO:0008139) (p=1.49e-03)
+      [Biological] RNA transport (GO:0050658) (p=1.51e-03)
+      [Biological] import into nucleus (GO:0051170) (p=1.51e-03)
+      ... and 70 more significant terms
+
+  Overlapping genes in top-k (k_i=23, k_j=17): 5
+    CCZ1, CCZ1B, CDK11A, CDK11B, NOMO1
+
+  Overlapping GO terms (4):
+    - cyclin-dependent protein kinase activity (GO:0097472)
+    - cyclin-dependent protein serine/threonine kinase activity (GO:0004693)
+    - purine ribonucleoside triphosphate binding (GO:0035639)
+    - regulation of mRNA metabolic process (GO:1903311)
+
+  GO term overlap coefficient: 1.0000
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 710 <-> Feature 3473
+Similarity: 0.2941
+
+  Feature 710
+    Participation Ratio: 85.6
+    GO terms: 61
+    Top genes (20):
+      RPS20: 16.8808
+      RPL27: 16.6274
+      DDX3Y: 16.4311
+      ZFY: 16.3107
+      RPL7: 15.9771
+      USP9Y: 15.5419
+      UTY: 15.3998
+      RPS4Y1: 15.2944
+      KDM5D: 15.2641
+      RPL27A: 15.1338
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=3.12e-49)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=6.18e-49)
+      [Biological] protein targeting to ER (GO:0045047) (p=7.18e-48)
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=9.34e-47)
+      [Biological] cytoplasmic translation (GO:0002181) (p=1.66e-44)
+      ... and 56 more significant terms
+
+  Feature 3473
+    Participation Ratio: 99.9
+    GO terms: 39
+    Top genes (20):
+      RPS17: 19.3141
+      NME2: 18.9238
+      BSCL2: 17.7224
+      PAM16: 17.7051
+      ANKHD1: 16.8837
+      ATP6V0C: 16.1124
+      COX6A1: 15.3251
+      TRAPPC5: 14.1693
+      MRPS24: 14.0745
+      PSMA6: 12.9444
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184) (p=5.55e-10)
+      [Biological] SRP-dependent cotranslational protein targeting to membrane (GO:0006614) (p=9.87e-10)
+      [Biological] cytoplasmic translation (GO:0002181) (p=9.87e-10)
+      [Biological] cotranslational protein targeting to membrane (GO:0006613) (p=9.87e-10)
+      [Biological] protein targeting to ER (GO:0045047) (p=1.83e-09)
+      ... and 34 more significant terms
+
+  Overlapping genes in top-k (k_i=51, k_j=59): 15
+    ANKHD1, CSNK2B, HLA-B, MRPS24, NDUFC2, PAM16, RPL27, RPL37A, RPS17, RPS21, RPS26, RPS28, RPS29, SARNP, TRAPPC5
+
+  Overlapping GO terms (26):
+    - RNA binding (GO:0003723)
+    - SRP-dependent cotranslational protein targeting to membrane (GO:0006614)
+    - cell-substrate junction (GO:0030055)
+    - cellular macromolecule biosynthetic process (GO:0034645)
+    - cellular protein metabolic process (GO:0044267)
+    - cotranslational protein targeting to membrane (GO:0006613)
+    - cytoplasmic side of endoplasmic reticulum membrane (GO:0098554)
+    - cytoplasmic translation (GO:0002181)
+    - cytosolic large ribosomal subunit (GO:0022625)
+    - cytosolic small ribosomal subunit (GO:0022627)
+    ... and 16 more
+
+  GO term overlap coefficient: 0.6667
+
+--------------------------------------------------------------------------------
+
+================================================================================
+LOW SIMILARITY PAIRS (n=5)
+================================================================================
+
+
+Pair: Feature 373 <-> Feature 2721
+Similarity: 0.0986
+
+  Feature 373
+    Participation Ratio: 118.9
+    GO terms: 2
+    Top genes (20):
+      AKT1S1: 18.9608
+      PEX10: 17.1699
+      PRPS2: 16.8655
+      TFPT: 15.3267
+      SIN3B: 13.4727
+      CTU2: 12.5547
+      MORC2: 12.2801
+      PORCN: 12.2694
+      FUOM: 11.7687
+      ISOC2: 11.5741
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] purine ribonucleotide transmembrane transporter activity (GO:0005346) (p=4.69e-02)
+      [Molecular] adenine nucleotide transmembrane transporter activity (GO:0000295) (p=4.69e-02)
+
+  Feature 2721
+    Participation Ratio: 222.0
+    GO terms: 9
+    Top genes (20):
+      TBL2: 29.8661
+      TEP1: 24.7640
+      LMAN2L: 24.0486
+      XPNPEP1: 23.7132
+      LYRM1: 23.6476
+      C10orf88: 23.4530
+      KATNAL1: 23.2673
+      TOMM40L: 23.0457
+      WRNIP1: 22.2036
+      ATG2B: 22.0803
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] cullin-RING ubiquitin ligase complex (GO:0031461) (p=1.19e-04)
+      [Biological] mitotic cell cycle phase transition (GO:0044772) (p=4.21e-02)
+      [Biological] proteasome-mediated ubiquitin-dependent protein catabolic process (GO:0043161) (p=4.21e-02)
+      [Biological] regulation of mitotic metaphase/anaphase transition (GO:0030071) (p=4.21e-02)
+      [Biological] G2/M transition of mitotic cell cycle (GO:0000086) (p=4.21e-02)
+      ... and 4 more significant terms
+
+  Overlapping genes in top-k (k_i=71, k_j=100): 7
+    ADPRM, FANCL, LRRC8A, PEX10, POFUT1, STOML1, YIPF2
+
+  No overlapping GO terms
+
+  GO term overlap coefficient: 0.0000
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 2960 <-> Feature 4706
+Similarity: 0.0984
+
+  Feature 2960
+    Participation Ratio: 312.5
+    GO terms: 2
+    Top genes (20):
+      ZNF3: 14.2290
+      GORASP1: 12.2709
+      NBR1: 12.1520
+      DYRK4: 11.5630
+      GAS2L1: 11.1931
+      STK16: 10.0270
+      VNN1: 9.6106
+      MKRN2: 9.6066
+      CASP5: 9.5156
+      BCL3: 9.3821
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] thyroid hormone receptor binding (GO:0046966) (p=3.04e-02)
+      [Molecular] palmitoyl-CoA hydrolase activity (GO:0016290) (p=3.04e-02)
+
+  Feature 4706
+    Participation Ratio: 103.0
+    GO terms: 4
+    Top genes (20):
+      IFT46: 17.1264
+      SETD3: 15.3624
+      ASL: 15.1131
+      SMAD4: 13.9254
+      ITPR2: 12.9462
+      CCDC24: 11.8065
+      GOLGA1: 11.2009
+      SNAPC3: 10.5258
+      LRRIQ3: 9.9372
+      TRPT1: 9.0962
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] snRNA transcription by RNA polymerase II (GO:0042795) (p=1.44e-02)
+      [Biological] snRNA transcription (GO:0009301) (p=1.44e-02)
+      [Molecular] core promoter sequence-specific DNA binding (GO:0001046) (p=1.69e-02)
+      [Molecular] RNA polymerase II core promoter sequence-specific DNA binding (GO:0000979) (p=3.54e-02)
+
+  Overlapping genes in top-k (k_i=100, k_j=61): 6
+    C6orf136, CASP5, CIAPIN1, SFXN3, SLC35A2, ZNF526
+
+  No overlapping GO terms
+
+  GO term overlap coefficient: 0.0000
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 2488 <-> Feature 2721
+Similarity: 0.0984
+
+  Feature 2488
+    Participation Ratio: 102.7
+    GO terms: 7
+    Top genes (20):
+      RABL2A: 14.4432
+      STX2: 13.5675
+      SNRNP40: 13.0014
+      CRTC1: 12.4198
+      CDK5RAP1: 12.3676
+      URB1: 12.0934
+      PKNOX1: 12.0144
+      FIG4: 11.6603
+      TAB3: 11.5285
+      HDAC10: 11.4725
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] ATP binding (GO:0005524) (p=2.07e-03)
+      [Molecular] adenyl ribonucleotide binding (GO:0032559) (p=2.07e-03)
+      [Biological] cytoplasmic microtubule organization (GO:0031122) (p=9.68e-03)
+      [Molecular] purine ribonucleoside triphosphate binding (GO:0035639) (p=1.30e-02)
+      [Molecular] protein-arginine N-methyltransferase activity (GO:0016274) (p=1.30e-02)
+      ... and 2 more significant terms
+
+  Feature 2721
+    Participation Ratio: 222.0
+    GO terms: 9
+    Top genes (20):
+      TBL2: 29.8661
+      TEP1: 24.7640
+      LMAN2L: 24.0486
+      XPNPEP1: 23.7132
+      LYRM1: 23.6476
+      C10orf88: 23.4530
+      KATNAL1: 23.2673
+      TOMM40L: 23.0457
+      WRNIP1: 22.2036
+      ATG2B: 22.0803
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] cullin-RING ubiquitin ligase complex (GO:0031461) (p=1.19e-04)
+      [Biological] mitotic cell cycle phase transition (GO:0044772) (p=4.21e-02)
+      [Biological] proteasome-mediated ubiquitin-dependent protein catabolic process (GO:0043161) (p=4.21e-02)
+      [Biological] regulation of mitotic metaphase/anaphase transition (GO:0030071) (p=4.21e-02)
+      [Biological] G2/M transition of mitotic cell cycle (GO:0000086) (p=4.21e-02)
+      ... and 4 more significant terms
+
+  Overlapping genes in top-k (k_i=61, k_j=100): 6
+    ACVR1B, C10orf88, KATNAL1, RABL2A, SLC25A14, TAB3
+
+  No overlapping GO terms
+
+  GO term overlap coefficient: 0.0000
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 951 <-> Feature 1994
+Similarity: 0.0984
+
+  Feature 951
+    Participation Ratio: 102.0
+    GO terms: 1
+    Top genes (20):
+      PLCD1: 17.3199
+      KLHL22: 15.1002
+      FAHD2B: 14.9852
+      TBC1D19: 13.1158
+      DCP1B: 13.0377
+      ZNF558: 11.9973
+      TPCN2: 11.4188
+      BBS2: 11.3702
+      VPS33B: 11.1933
+      RALGAPA2: 10.7845
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Biological] neutral lipid catabolic process (GO:0046461) (p=3.77e-02)
+
+  Feature 1994
+    Participation Ratio: 105.0
+    GO terms: 3
+    Top genes (20):
+      SYS1: 15.2540
+      SLC37A1: 13.6642
+      AGGF1: 12.9112
+      STAU2: 12.4547
+      ITFG1: 12.2941
+      SARS2: 12.1675
+      TMEM248: 11.5023
+      ATP13A2: 11.3410
+      NUDT14: 10.5447
+      NICN1: 10.1586
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] integral component of organelle membrane (GO:0031301) (p=3.92e-02)
+      [Cellular] COPII vesicle coat (GO:0030127) (p=3.92e-02)
+      [Biological] protein localization to Golgi apparatus (GO:0034067) (p=4.18e-02)
+
+  Overlapping genes in top-k (k_i=61, k_j=62): 6
+    COG7, MLX, POMT1, RECQL5, TBC1D19, ZNF764
+
+  No overlapping GO terms
+
+  GO term overlap coefficient: 0.0000
+
+--------------------------------------------------------------------------------
+
+Pair: Feature 2488 <-> Feature 3558
+Similarity: 0.0984
+
+  Feature 2488
+    Participation Ratio: 102.7
+    GO terms: 7
+    Top genes (20):
+      RABL2A: 14.4432
+      STX2: 13.5675
+      SNRNP40: 13.0014
+      CRTC1: 12.4198
+      CDK5RAP1: 12.3676
+      URB1: 12.0934
+      PKNOX1: 12.0144
+      FIG4: 11.6603
+      TAB3: 11.5285
+      HDAC10: 11.4725
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Molecular] ATP binding (GO:0005524) (p=2.07e-03)
+      [Molecular] adenyl ribonucleotide binding (GO:0032559) (p=2.07e-03)
+      [Biological] cytoplasmic microtubule organization (GO:0031122) (p=9.68e-03)
+      [Molecular] purine ribonucleoside triphosphate binding (GO:0035639) (p=1.30e-02)
+      [Molecular] protein-arginine N-methyltransferase activity (GO:0016274) (p=1.30e-02)
+      ... and 2 more significant terms
+
+  Feature 3558
+    Participation Ratio: 223.2
+    GO terms: 4
+    Top genes (20):
+      RNLS: 15.9463
+      NUDT15: 15.7263
+      THG1L: 12.9234
+      CEP44: 12.9044
+      ZNF75D: 12.6644
+      NPAT: 12.6579
+      MAP2K7: 12.6252
+      MIS12: 12.0162
+      FN3KRP: 11.9503
+      TMEM104: 11.9305
+      ... and 10 more
+    GO enrichment (top 5 terms):
+      [Cellular] SAGA-type complex (GO:0070461) (p=8.41e-04)
+      [Cellular] nucleus (GO:0005634) (p=1.35e-02)
+      [Cellular] intracellular membrane-bounded organelle (GO:0043231) (p=4.32e-02)
+      [Cellular] transcription factor TFTC complex (GO:0033276) (p=4.82e-02)
+
+  Overlapping genes in top-k (k_i=61, k_j=100): 6
+    HSF2, IKZF5, ODF2, PRPF3, STX2, TUBGCP5
+
+  No overlapping GO terms
+
+  GO term overlap coefficient: 0.0000
+
+--------------------------------------------------------------------------------

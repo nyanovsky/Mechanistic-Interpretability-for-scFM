@@ -1,0 +1,9 @@
+/.claude
+/data
+/papers
+/ModelGenerator
+/scBERT
+/scGPT
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

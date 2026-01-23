@@ -1,0 +1,654 @@
+CONNECTED COMPONENTS ANALYSIS
+================================================================================
+Threshold: 0.2
+Metric: overlap_sqrt
+Min size: 3
+Total components: 25
+================================================================================
+
+
+================================================================================
+Component 1
+================================================================================
+Size: 125 features
+Features: [0, 7, 31, 181, 191, 280, 309, 384, 389, 482, 511, 517, 538, 541, 554, 575, 620, 680, 710, 719, 824, 845, 846, 870, 872, 916, 1078, 1110, 1136, 1137, 1174, 1188, 1257, 1278, 1324, 1335, 1373, 1437, 1472, 1479, 1500, 1596, 1686, 1727, 1759, 1833, 1863, 1967, 1988, 2008, 2037, 2041, 2146, 2326, 2385, 2399, 2409, 2415, 2439, 2454, 2482, 2510, 2511, 2515, 2552, 2678, 2714, 2836, 2841, 3072, 3084, 3092, 3118, 3119, 3133, 3197, 3205, 3207, 3242, 3349, 3359, 3377, 3401, 3425, 3473, 3498, 3521, 3551, 3552, 3599, 3661, 3702, 3827, 3854, 3869, 3931, 3939, 3976, 4022, 4039, 4045, 4056, 4105, 4111, 4154, 4314, 4346, 4374, 4375, 4426, 4432, 4516, 4553, 4578, 4735, 4744, 4745, 4804, 4812, 4845, 4952, 4974, 5007, 5009, 5065]
+
+Coherence metrics:
+  Edge density: 0.037
+  Mean pairwise GO overlap: 0.117
+  Features with GO annotation: 125/125
+
+No shared GO terms (appearing in >= 50% of features)
+
+
+================================================================================
+Component 2
+================================================================================
+Size: 20 features
+Features: [395, 583, 740, 1086, 1132, 1311, 1460, 1589, 2628, 2706, 2791, 2986, 3079, 3234, 3865, 3959, 4414, 4508, 4687, 4889]
+
+Coherence metrics:
+  Edge density: 0.226
+  Mean pairwise GO overlap: 0.192
+  Features with GO annotation: 20/20
+
+Shared GO terms (>= 50% of features):
+  [14/20] regulation of immune response (GO:0050776)
+  [10/20] positive regulation of T cell activation (GO:0050870)
+  [10/20] regulation of T cell differentiation (GO:0045580)
+  [10/20] T cell activation (GO:0042110)
+  [10/20] positive regulation of cytokine production (GO:0001819)
+
+
+================================================================================
+Component 3
+================================================================================
+Size: 9 features
+Features: [16, 255, 452, 643, 658, 798, 1011, 3464, 4838]
+
+Coherence metrics:
+  Edge density: 0.250
+  Mean pairwise GO overlap: 0.218
+  Features with GO annotation: 9/9
+
+Shared GO terms (>= 50% of features):
+  [7/9] focal adhesion (GO:0005925)
+  [7/9] cell-substrate junction (GO:0030055)
+  [6/9] RNA binding (GO:0003723)
+  [6/9] ATF6-mediated unfolded protein response (GO:0036500)
+  [5/9] mRNA binding (GO:0003729)
+  [5/9] antigen processing and presentation of peptide antigen via MHC class I (GO:0002474)
+  [5/9] endoplasmic reticulum membrane (GO:0005789)
+
+
+================================================================================
+Component 4
+================================================================================
+Size: 9 features
+Features: [673, 1398, 1790, 2316, 2381, 2593, 3251, 4367, 4827]
+
+Coherence metrics:
+  Edge density: 0.306
+  Mean pairwise GO overlap: 0.365
+  Features with GO annotation: 9/9
+
+Shared GO terms (>= 50% of features):
+  [8/9] cytokine-mediated signaling pathway (GO:0019221)
+  [8/9] negative regulation of viral process (GO:0048525)
+  [8/9] defense response to virus (GO:0051607)
+  [8/9] cellular response to type I interferon (GO:0071357)
+  [8/9] defense response to symbiont (GO:0140546)
+  [8/9] type I interferon signaling pathway (GO:0060337)
+  [7/9] interferon-gamma-mediated signaling pathway (GO:0060333)
+  [7/9] cellular response to interferon-gamma (GO:0071346)
+  [7/9] regulation of viral genome replication (GO:0045069)
+  [7/9] negative regulation of viral genome replication (GO:0045071)
+  [6/9] negative regulation of type I interferon-mediated signaling pathway (GO:0060339)
+  [6/9] antiviral innate immune response (GO:0140374)
+  [6/9] response to type I interferon (GO:0034340)
+  [5/9] regulation of defense response to virus by host (GO:0050691)
+  [5/9] response to interferon-beta (GO:0035456)
+  [5/9] RNA binding (GO:0003723)
+  [5/9] positive regulation of defense response to virus by host (GO:0002230)
+  [5/9] regulation of innate immune response (GO:0045088)
+  [5/9] interleukin-27-mediated signaling pathway (GO:0070106)
+  [5/9] negative regulation of cytokine-mediated signaling pathway (GO:0001960)
+  ... and 5 more
+
+
+================================================================================
+Component 5
+================================================================================
+Size: 6 features
+Features: [150, 257, 370, 1719, 2677, 2950]
+
+Coherence metrics:
+  Edge density: 0.733
+  Mean pairwise GO overlap: 0.462
+  Features with GO annotation: 6/6
+
+Shared GO terms (>= 50% of features):
+  [4/6] platelet alpha granule lumen (GO:0031093)
+  [4/6] CXCR chemokine receptor binding (GO:0045236)
+  [4/6] platelet degranulation (GO:0002576)
+  [4/6] chemokine receptor binding (GO:0042379)
+  [4/6] regulated exocytosis (GO:0045055)
+  [4/6] platelet alpha granule (GO:0031091)
+  [4/6] chemokine activity (GO:0008009)
+  [4/6] regulation of myeloid cell differentiation (GO:0045637)
+  [4/6] regulation of megakaryocyte differentiation (GO:0045652)
+  [3/6] CXCR3 chemokine receptor binding (GO:0048248)
+  [3/6] granulocyte chemotaxis (GO:0071621)
+  [3/6] secretory granule lumen (GO:0034774)
+  [3/6] chemokine-mediated signaling pathway (GO:0070098)
+  [3/6] antimicrobial humoral immune response mediated by antimicrobial peptide (GO:0061844)
+  [3/6] neutrophil chemotaxis (GO:0030593)
+  [3/6] cellular response to chemokine (GO:1990869)
+
+
+================================================================================
+Component 6
+================================================================================
+Size: 5 features
+Features: [206, 282, 2188, 2600, 4188]
+
+Coherence metrics:
+  Edge density: 0.500
+  Mean pairwise GO overlap: 0.485
+  Features with GO annotation: 5/5
+
+Shared GO terms (>= 50% of features):
+  [5/5] regulation of primary metabolic process (GO:0080090)
+  [5/5] cholesterol metabolic process (GO:0008203)
+  [5/5] organic hydroxy compound biosynthetic process (GO:1901617)
+  [5/5] cholesterol biosynthetic process (GO:0006695)
+  [5/5] sterol biosynthetic process (GO:0016126)
+  [5/5] regulation of lipid metabolic process (GO:0019216)
+  [5/5] steroid biosynthetic process (GO:0006694)
+  [5/5] sterol metabolic process (GO:0016125)
+  [5/5] secondary alcohol biosynthetic process (GO:1902653)
+  [5/5] endoplasmic reticulum membrane (GO:0005789)
+  [4/5] acetyl-CoA metabolic process (GO:0006084)
+  [4/5] peroxisome (GO:0005777)
+  [4/5] lipid biosynthetic process (GO:0008610)
+  [3/5] oxidoreductase activity, acting on the CH-CH group of donors, NAD or NADP as acceptor (GO:0016628)
+  [3/5] phospholipid biosynthetic process (GO:0008654)
+  [3/5] acyl-CoA biosynthetic process (GO:0071616)
+  [3/5] fatty acid metabolic process (GO:0006631)
+  [3/5] lipid droplet formation (GO:0140042)
+  [3/5] acetyl-CoA C-acyltransferase activity (GO:0003988)
+  [3/5] oxidoreductase activity, acting on paired donors, with incorporation or reduction of molecular oxygen, NAD(P)H as one donor, and incorporation of one atom of oxygen (GO:0016709)
+  ... and 7 more
+
+
+================================================================================
+Component 7
+================================================================================
+Size: 5 features
+Features: [799, 891, 1721, 3101, 4298]
+
+Coherence metrics:
+  Edge density: 0.500
+  Mean pairwise GO overlap: 0.611
+  Features with GO annotation: 5/5
+
+Shared GO terms (>= 50% of features):
+  [5/5] neutrophil chemotaxis (GO:0030593)
+  [5/5] neutrophil activation involved in immune response (GO:0002283)
+  [5/5] regulation of inflammatory response (GO:0050727)
+  [5/5] peptidyl-cysteine modification (GO:0018198)
+  [5/5] RAGE receptor binding (GO:0050786)
+  [5/5] neutrophil migration (GO:1990266)
+  [5/5] regulation of organelle organization (GO:0033043)
+  [5/5] leukocyte aggregation (GO:0070486)
+  [5/5] cytoplasmic vesicle lumen (GO:0060205)
+  [5/5] arachidonic acid binding (GO:0050544)
+  [5/5] secretory granule lumen (GO:0034774)
+  [5/5] peptidyl-cysteine S-nitrosylation (GO:0018119)
+  [5/5] positive regulation of defense response (GO:0031349)
+  [5/5] icosanoid binding (GO:0050542)
+  [5/5] neutrophil degranulation (GO:0043312)
+  [5/5] Toll-like receptor binding (GO:0035325)
+  [5/5] positive regulation of intracellular signal transduction (GO:1902533)
+  [5/5] neutrophil mediated immunity (GO:0002446)
+  [5/5] inflammatory response (GO:0006954)
+  [5/5] positive regulation of NF-kappaB transcription factor activity (GO:0051092)
+  ... and 40 more
+
+
+================================================================================
+Component 8
+================================================================================
+Size: 5 features
+Features: [996, 1225, 1564, 1806, 3246]
+
+Coherence metrics:
+  Edge density: 0.400
+  Mean pairwise GO overlap: 0.347
+  Features with GO annotation: 5/5
+
+Shared GO terms (>= 50% of features):
+  [5/5] neutrophil mediated immunity (GO:0002446)
+  [5/5] regulation of immune response (GO:0050776)
+  [4/5] neutrophil degranulation (GO:0043312)
+  [4/5] neutrophil activation involved in immune response (GO:0002283)
+  [4/5] secretory granule membrane (GO:0030667)
+  [3/5] integral component of plasma membrane (GO:0005887)
+  [3/5] regulation of humoral immune response (GO:0002920)
+  [3/5] synapse pruning (GO:0098883)
+  [3/5] negative regulation of immune response (GO:0050777)
+  [3/5] negative regulation of inflammatory response to antigenic stimulus (GO:0002862)
+  [3/5] inflammatory response (GO:0006954)
+  [3/5] regulation of immune effector process (GO:0002697)
+  [3/5] ficolin-1-rich granule (GO:0101002)
+  [3/5] regulation of complement activation (GO:0030449)
+  [3/5] toll-like receptor signaling pathway (GO:0002224)
+  [3/5] endocytic vesicle (GO:0030139)
+  [3/5] specific granule membrane (GO:0035579)
+  [3/5] receptor-mediated endocytosis (GO:0006898)
+  [3/5] negative regulation of inflammatory response (GO:0050728)
+  [3/5] cellular response to lipopolysaccharide (GO:0071222)
+
+
+================================================================================
+Component 9
+================================================================================
+Size: 5 features
+Features: [1126, 2824, 2984, 4216, 4651]
+
+Coherence metrics:
+  Edge density: 0.400
+  Mean pairwise GO overlap: 0.071
+  Features with GO annotation: 5/5
+
+Shared GO terms (>= 50% of features):
+  [5/5] cytoskeleton-dependent intracellular transport (GO:0030705)
+  [3/5] guanyl ribonucleotide binding (GO:0032561)
+  [3/5] GTP binding (GO:0005525)
+  [3/5] purine ribonucleoside triphosphate binding (GO:0035639)
+
+
+================================================================================
+Component 10
+================================================================================
+Size: 5 features
+Features: [2803, 3607, 4289, 4723, 5023]
+
+Coherence metrics:
+  Edge density: 0.400
+  Mean pairwise GO overlap: 0.358
+  Features with GO annotation: 5/5
+
+Shared GO terms (>= 50% of features):
+  [5/5] zinc ion homeostasis (GO:0055069)
+  [5/5] cellular transition metal ion homeostasis (GO:0046916)
+  [5/5] response to copper ion (GO:0046688)
+  [5/5] cellular response to copper ion (GO:0071280)
+  [5/5] response to zinc ion (GO:0010043)
+  [5/5] response to cadmium ion (GO:0046686)
+  [5/5] cellular response to cadmium ion (GO:0071276)
+  [5/5] cellular zinc ion homeostasis (GO:0006882)
+  [5/5] cellular response to metal ion (GO:0071248)
+  [5/5] cellular response to erythropoietin (GO:0036018)
+  [5/5] cellular divalent inorganic cation homeostasis (GO:0072503)
+  [5/5] negative regulation of growth (GO:0045926)
+  [5/5] cellular response to zinc ion (GO:0071294)
+  [4/5] zinc ion binding (GO:0008270)
+  [4/5] transition metal ion binding (GO:0046914)
+  [4/5] metal ion binding (GO:0046872)
+  [4/5] response to metal ion (GO:0010038)
+  [3/5] copper ion homeostasis (GO:0055070)
+  [3/5] cellular copper ion homeostasis (GO:0006878)
+
+
+================================================================================
+Component 11
+================================================================================
+Size: 4 features
+Features: [469, 997, 1741, 3170]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.430
+  Features with GO annotation: 4/4
+
+Shared GO terms (>= 50% of features):
+  [4/4] B cell receptor signaling pathway (GO:0050853)
+  [3/4] B cell mediated immunity (GO:0019724)
+  [3/4] negative regulation of production of molecular mediator of immune response (GO:0002701)
+  [3/4] regulation of B cell proliferation (GO:0030888)
+  [3/4] regulation of B cell activation (GO:0050864)
+  [3/4] negative regulation of antigen receptor-mediated signaling pathway (GO:0050858)
+  [3/4] integral component of plasma membrane (GO:0005887)
+  [3/4] antigen receptor-mediated signaling pathway (GO:0050851)
+  [3/4] regulation of antigen receptor-mediated signaling pathway (GO:0050854)
+  [3/4] negative regulation of B cell activation (GO:0050869)
+  [3/4] immunoglobulin mediated immune response (GO:0016064)
+  [3/4] B cell activation involved in immune response (GO:0002312)
+  [3/4] B cell activation (GO:0042113)
+  [3/4] B cell proliferation (GO:0042100)
+  [3/4] negative regulation of immunoglobulin production (GO:0002638)
+  [3/4] negative regulation of B cell receptor signaling pathway (GO:0050859)
+  [3/4] regulation of B cell receptor signaling pathway (GO:0050855)
+  [2/4] lymphocyte proliferation (GO:0046651)
+  [2/4] negative regulation of lymphocyte activation (GO:0051250)
+  [2/4] negative regulation of lymphocyte proliferation (GO:0050672)
+  ... and 17 more
+
+
+================================================================================
+Component 12
+================================================================================
+Size: 4 features
+Features: [760, 1386, 3028, 3769]
+
+Coherence metrics:
+  Edge density: 0.833
+  Mean pairwise GO overlap: 0.000
+  Features with GO annotation: 4/4
+
+No shared GO terms (appearing in >= 50% of features)
+
+
+================================================================================
+Component 13
+================================================================================
+Size: 4 features
+Features: [1226, 1548, 3286, 4165]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.189
+  Features with GO annotation: 4/4
+
+Shared GO terms (>= 50% of features):
+  [3/4] pre-mRNA 3'-splice site binding (GO:0030628)
+  [3/4] pre-mRNA binding (GO:0036002)
+  [2/4] RNA binding (GO:0003723)
+  [2/4] nucleus (GO:0005634)
+  [2/4] mRNA metabolic process (GO:0016071)
+  [2/4] mRNA processing (GO:0006397)
+  [2/4] mRNA splicing, via spliceosome (GO:0000398)
+  [2/4] RNA splicing, via transesterification reactions with bulged adenosine as nucleophile (GO:0000377)
+  [2/4] RNA processing (GO:0006396)
+  [2/4] ribonucleoprotein complex assembly (GO:0022618)
+  [2/4] miRNA binding (GO:0035198)
+  [2/4] regulatory RNA binding (GO:0061980)
+
+
+================================================================================
+Component 14
+================================================================================
+Size: 3 features
+Features: [10, 1465, 1514]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.541
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [3/3] icosanoid metabolic process (GO:0006690)
+  [3/3] SH3 domain binding (GO:0017124)
+  [3/3] negative regulation of release of cytochrome c from mitochondria (GO:0090201)
+  [3/3] purine nucleotide metabolic process (GO:0006163)
+  [3/3] purine nucleotide catabolic process (GO:0006195)
+  [3/3] regulation of supramolecular fiber organization (GO:1902903)
+  [3/3] unsaturated fatty acid metabolic process (GO:0033559)
+  [3/3] hydrogen peroxide catabolic process (GO:0042744)
+  [3/3] arachidonic acid metabolic process (GO:0019369)
+  [3/3] cellular response to oxidative stress (GO:0034599)
+  [3/3] cellular response to chemical stress (GO:0062197)
+  [3/3] long-chain fatty acid metabolic process (GO:0001676)
+  [3/3] heart process (GO:0003015)
+  [3/3] nucleotide catabolic process (GO:0009166)
+  [3/3] lipoxygenase pathway (GO:0019372)
+  [3/3] purine-containing compound catabolic process (GO:0072523)
+  [3/3] fatty acid metabolic process (GO:0006631)
+  [3/3] UV protection (GO:0009650)
+  [3/3] regulation of mammary gland epithelial cell proliferation (GO:0033599)
+  [2/3] heart contraction (GO:0060047)
+  ... and 30 more
+
+
+================================================================================
+Component 15
+================================================================================
+Size: 3 features
+Features: [59, 144, 193]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.308
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [3/3] type I interferon signaling pathway (GO:0060337)
+  [3/3] defense response to symbiont (GO:0140546)
+  [3/3] defense response to virus (GO:0051607)
+  [3/3] cellular response to type I interferon (GO:0071357)
+  [2/3] response to interferon-beta (GO:0035456)
+  [2/3] modulation by host of viral genome replication (GO:0044827)
+  [2/3] antiviral innate immune response (GO:0140374)
+  [2/3] response to type I interferon (GO:0034340)
+  [2/3] modulation by host of viral process (GO:0044788)
+  [2/3] regulation of nucleocytoplasmic transport (GO:0046822)
+
+
+================================================================================
+Component 16
+================================================================================
+Size: 3 features
+Features: [464, 2034, 2964]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.067
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [2/3] purine ribonucleoside triphosphate metabolic process (GO:0009205)
+  [2/3] GTP metabolic process (GO:0046039)
+
+
+================================================================================
+Component 17
+================================================================================
+Size: 3 features
+Features: [617, 1846, 4064]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.051
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [2/3] positive regulation of cellular carbohydrate metabolic process (GO:0010676)
+  [2/3] lymphocyte activation involved in immune response (GO:0002285)
+  [2/3] positive regulation of alcohol biosynthetic process (GO:1902932)
+  [2/3] regulation of inositol phosphate biosynthetic process (GO:0010919)
+  [2/3] positive regulation of inositol phosphate biosynthetic process (GO:0060732)
+  [2/3] natural killer cell activation involved in immune response (GO:0002323)
+
+
+================================================================================
+Component 18
+================================================================================
+Size: 3 features
+Features: [1178, 2195, 4858]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.329
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [2/3] nucleoside diphosphate kinase activity (GO:0004550)
+  [2/3] nucleoside diphosphate metabolic process (GO:0009132)
+  [2/3] nucleobase-containing small molecule interconversion (GO:0015949)
+  [2/3] nucleotide metabolic process (GO:0009117)
+  [2/3] nucleotide phosphorylation (GO:0046939)
+  [2/3] phosphotransferase activity, phosphate group as acceptor (GO:0016776)
+  [2/3] nucleobase-containing compound kinase activity (GO:0019205)
+  [2/3] pyrimidine ribonucleotide biosynthetic process (GO:0009220)
+  [2/3] pyrimidine ribonucleotide metabolic process (GO:0009218)
+  [2/3] nucleoside triphosphate metabolic process (GO:0009141)
+  [2/3] nucleoside triphosphate biosynthetic process (GO:0009142)
+  [2/3] nucleoside diphosphate phosphorylation (GO:0006165)
+  [2/3] nucleoside phosphate biosynthetic process (GO:1901293)
+  [2/3] negative regulation of transmembrane transport (GO:0034763)
+  [2/3] regulation of glycogen biosynthetic process (GO:0005979)
+  [2/3] positive regulation of glycogen biosynthetic process (GO:0045725)
+  [2/3] positive regulation of cellular carbohydrate metabolic process (GO:0010676)
+  [2/3] positive regulation of B cell proliferation (GO:0030890)
+  [2/3] positive regulation of glycogen metabolic process (GO:0070875)
+  [2/3] negative regulation of B cell apoptotic process (GO:0002903)
+  ... and 18 more
+
+
+================================================================================
+Component 19
+================================================================================
+Size: 3 features
+Features: [1779, 3831, 4262]
+
+Coherence metrics:
+  Edge density: 1.000
+  Mean pairwise GO overlap: 0.288
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [3/3] arylsulfatase activity (GO:0004065)
+  [3/3] phosphatidylinositol-3,5-bisphosphate binding (GO:0080025)
+  [3/3] sulfuric ester hydrolase activity (GO:0008484)
+  [2/3] androgen receptor binding (GO:0050681)
+  [2/3] Golgi to endosome transport (GO:0006895)
+  [2/3] regulation of multicellular organismal development (GO:2000026)
+  [2/3] protein localization to phagophore assembly site (GO:0034497)
+  [2/3] autophagy of nucleus (GO:0044804)
+  [2/3] lipoprotein biosynthetic process (GO:0042158)
+
+
+================================================================================
+Component 20
+================================================================================
+Size: 3 features
+Features: [1871, 2309, 3388]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.067
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [2/3] aminoacyl-tRNA ligase activity (GO:0004812)
+  [2/3] carboxylic acid biosynthetic process (GO:0046394)
+  [2/3] tRNA aminoacylation for mitochondrial protein translation (GO:0070127)
+  [2/3] nucleotide-sugar biosynthetic process (GO:0009226)
+  [2/3] tRNA aminoacylation for protein translation (GO:0006418)
+  [2/3] MPP7-DLG1-LIN7 complex (GO:0097025)
+  [2/3] tRNA aminoacylation (GO:0043039)
+  [2/3] UDP-N-acetylglucosamine transmembrane transporter activity (GO:0005462)
+  [2/3] pyrimidine nucleotide-sugar transmembrane transporter activity (GO:0015165)
+  [2/3] macromolecule catabolic process (GO:0009057)
+  [2/3] protein localization to cell-cell junction (GO:0150105)
+
+
+================================================================================
+Component 21
+================================================================================
+Size: 3 features
+Features: [1931, 4053, 4764]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.266
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [3/3] positive regulation of production of molecular mediator of immune response (GO:0002702)
+  [3/3] negative regulation of retrograde protein transport, ER to cytosol (GO:1904153)
+  [3/3] regulation of B cell activation (GO:0050864)
+  [3/3] regulation of retrograde protein transport, ER to cytosol (GO:1904152)
+  [3/3] protein N-linked glycosylation via asparagine (GO:0018279)
+  [3/3] peptidyl-asparagine modification (GO:0018196)
+  [3/3] negative regulation of protein exit from endoplasmic reticulum (GO:0070862)
+  [2/3] Hrd1p ubiquitin ligase complex (GO:0000836)
+  [2/3] protein N-linked glycosylation (GO:0006487)
+  [2/3] regulation of B cell proliferation (GO:0030888)
+  [2/3] regulation of lymphocyte proliferation (GO:0050670)
+  [2/3] immunoglobulin receptor binding (GO:0034987)
+  [2/3] signal recognition particle binding (GO:0005047)
+  [2/3] integrin activation (GO:0033622)
+  [2/3] Hrd1p ubiquitin ligase ERAD-L complex (GO:0000839)
+  [2/3] regulation of immunoglobulin production (GO:0002637)
+  [2/3] regulation of insulin receptor signaling pathway (GO:0046626)
+  [2/3] positive regulation of immunoglobulin production (GO:0002639)
+
+
+================================================================================
+Component 22
+================================================================================
+Size: 3 features
+Features: [2152, 3698, 4796]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.058
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [3/3] antifungal innate immune response (GO:0061760)
+  [2/3] defense response to fungus (GO:0050832)
+  [2/3] positive regulation of leukocyte activation (GO:0002696)
+  [2/3] mannose binding (GO:0005537)
+
+
+================================================================================
+Component 23
+================================================================================
+Size: 3 features
+Features: [2865, 4399, 5106]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.252
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [3/3] regulation of cellular response to stress (GO:0080135)
+  [3/3] RNA binding (GO:0003723)
+  [3/3] regulation of cellular response to heat (GO:1900034)
+  [3/3] Hsp90 protein binding (GO:0051879)
+  [3/3] regulation of MHC class I biosynthetic process (GO:0045343)
+  [3/3] regulation of NK T cell activation (GO:0051133)
+  [3/3] positive regulation of MHC class I biosynthetic process (GO:0045345)
+  [3/3] ATPase regulator activity (GO:0060590)
+  [3/3] positive regulation of NK T cell activation (GO:0051135)
+  [2/3] positive regulation of protein localization to Cajal body (GO:1904871)
+  [2/3] RNA localization to Cajal body (GO:0090670)
+  [2/3] intracellular organelle lumen (GO:0070013)
+  [2/3] positive regulation of transferase activity (GO:0051347)
+  [2/3] ubiquitin protein ligase binding (GO:0031625)
+  [2/3] positive regulation of DNA biosynthetic process (GO:2000573)
+  [2/3] scaRNA localization to Cajal body (GO:0090666)
+  [2/3] interleukin-12-mediated signaling pathway (GO:0035722)
+  [2/3] positive regulation of protein localization to chromosome, telomeric region (GO:1904816)
+  [2/3] positive regulation of establishment of protein localization (GO:1904951)
+  [2/3] chaperone-mediated protein complex assembly (GO:0051131)
+  ... and 21 more
+
+
+================================================================================
+Component 24
+================================================================================
+Size: 3 features
+Features: [3927, 4502, 5064]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.033
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [2/3] WW domain binding (GO:0050699)
+
+
+================================================================================
+Component 25
+================================================================================
+Size: 3 features
+Features: [4479, 4859, 4948]
+
+Coherence metrics:
+  Edge density: 0.667
+  Mean pairwise GO overlap: 0.074
+  Features with GO annotation: 3/3
+
+Shared GO terms (>= 50% of features):
+  [3/3] intracellular calcium activated chloride channel activity (GO:0005229)
+  [3/3] intracellular chloride channel activity (GO:0061778)
+  [3/3] volume-sensitive anion channel activity (GO:0005225)
+  [2/3] ion gated channel activity (GO:0022839)
+  [2/3] chloride channel activity (GO:0005254)
+  [2/3] anion transport (GO:0006820)
