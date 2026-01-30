@@ -106,7 +106,7 @@ def get_experiment_configs() -> dict:
     configs = {
         'viral_defense': SteeringConfig(
             name="Viral Defense State (Component 4)",
-            steering_features=[673, 1398, 1790, 2316, 2381, 2593, 3251, 4367, 4827],
+            steering_features=[4367], #[673, 1398, 1790, 2316, 2381, 2593, 3251, 4367, 4827]
             alphas=[0, 0.5, 1, 2, 5],
             layer_idx=12,
             reference='max',
@@ -115,7 +115,7 @@ def get_experiment_configs() -> dict:
 
         'neutrophil_inflammatory': SteeringConfig(
             name="Neutrophil/Inflammatory Program (Component 7)",
-            steering_features=[799, 891, 1721, 3101, 4298],
+            steering_features=[799], #[799, 891, 1721, 3101, 4298],
             alphas=[0, 0.5, 1, 2, 5],
             layer_idx=12,
             reference='max',
@@ -142,7 +142,7 @@ def get_experiment_configs() -> dict:
 
         'bcell_receptor': SteeringConfig(
             name="B-Cell Receptor Signaling (Component 11)",
-            steering_features=[469, 997, 1741, 3170],
+            steering_features=[3170], #[469, 997, 1741, 3170]
             alphas=[0, 0.5, 1, 2, 5],
             layer_idx=12,
             reference='max',

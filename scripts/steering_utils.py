@@ -109,6 +109,9 @@ class SAESteeringModel(nn.Module):
 
     def _register_hook(self):
         """Register forward hook on the specified layer."""
+        # Pre-load reference values to GPU once to avoid allocation churn in hook
+        self.reference_values = self.feature_stats[self.reference].to(next(self.model.parameters()).device)
+        
         def steering_hook(module, input, output):
             """
             Hook that captures activations, applies SAE steering, and returns steered activations.
@@ -141,11 +144,14 @@ class SAESteeringModel(nn.Module):
         """
         Apply SAE-based steering to hidden states.
 
-        Method (Anthropic's approach):
+        Method (multiplicative steering):
         1. Encode: features = SAE.encode(x)
         2. Reconstruct: x_recon = features @ decoder
         3. Compute error: error = x - x_recon
-        4. Steer: features_steered[i] = alpha * reference[i] for i in steering_features
+        4. Steer: features_steered[i] *= alpha for i in steering_features
+           - This scales natural activations: genes with high natural activation
+             get amplified, genes with zero activation stay zero
+           - Preserves sparsity and biological relevance
         5. Reconstruct steered: x_recon_steered = features_steered @ decoder
         6. Return: x_steered = x_recon_steered + error
 
@@ -156,7 +162,6 @@ class SAESteeringModel(nn.Module):
             steered_states: (batch, seq_len, hidden_size)
         """
         batch_size, seq_len, hidden_size = hidden_states.shape
-        device = hidden_states.device
         dtype = hidden_states.dtype
 
         # Flatten batch and sequence dimensions for SAE
@@ -164,30 +169,29 @@ class SAESteeringModel(nn.Module):
 
         with torch.no_grad():
             # Step 1: Encode with SAE
+            # Note: Explicit float() cast increases memory but might be needed if SAE is fp32
             features = self.sae.encode(flat_states.float())  # (batch*seq_len, n_features)
 
             # Step 2: Get original reconstruction and error
             # Use decoder weight matrix transposed: (latent_dim, input_dim)
             decoder_weights = self.sae.decoder.weight.T
             x_reconstructed = features @ decoder_weights
+            
+            # Keep error in high precision for now, or match input?
             error = flat_states.float() - x_reconstructed
 
-            # Step 3: STEER - SET feature activations (REPLACE, not add)
+            # Step 3: STEER - SCALE natural feature activations
             features_steered = features.clone()
-            reference_values = self.feature_stats[self.reference].to(device)
 
+            # Scale natural activations by alpha (multiplicative steering)
+            # This preserves sparsity: only amplifies/dampens where feature is naturally active
             for feat_id in self.steering_features:
-                # SET (=) feature to alpha * reference_value
-                # alpha=0 means ABLATE (set to 0)
-                # alpha=1 means set to reference value (e.g., max)
-                # alpha=5 means set to 5x reference value
-                features_steered[:, feat_id] = self.alpha * reference_values[feat_id]
+                features_steered[:, feat_id] *= self.alpha
 
             # Step 4: Reconstruct from steered features
             x_reconstructed_steered = features_steered @ decoder_weights
 
             # Step 5: Add back error term (Anthropic's approach)
-            # This preserves information the SAE couldn't capture
             x_steered = x_reconstructed_steered + error
 
         # Reshape back to (batch, seq_len, hidden_size)
@@ -221,6 +225,9 @@ class SAESteeringModel(nn.Module):
         if self.hook_handle is not None:
             self.hook_handle.remove()
             self.hook_handle = None
+        # Clear reference to GPU tensor to allow GC
+        if hasattr(self, 'reference_values'):
+            del self.reference_values
 
 
 class SteeringExperiment:
@@ -288,7 +295,8 @@ class SteeringExperiment:
 
         try:
             with torch.no_grad():
-                for i in tqdm(range(0, len(cell_indices), self.batch_size), desc="Baseline"):
+                pbar = tqdm(range(0, len(cell_indices), self.batch_size), desc="Baseline")
+                for i in pbar:
                     batch_idx = cell_indices[i:i+self.batch_size]
                     batch_counts = adata[batch_idx].X
                     if hasattr(batch_counts, 'toarray'):
@@ -296,6 +304,10 @@ class SteeringExperiment:
 
                     # Preprocess
                     batch_processed = preprocess_counts(batch_counts, device=self.device)
+                    
+                    # Update progress bar with shape info to monitor memory usage
+                    seq_len = batch_processed.shape[1]
+                    pbar.set_postfix({"seq_len": seq_len})
 
                     # Prepare attention mask
                     batch_attn_mask = self.attn_mask_tensor.repeat(batch_processed.shape[0], 1)
@@ -317,10 +329,18 @@ class SteeringExperiment:
                     last_hidden = last_hidden[:, self.attention_mask.astype(bool), :]
                     cell_embeddings = last_hidden.mean(dim=1)
 
-                    outputs_list.append(output.logits.cpu())
+                    # Extract logits: remove depth tokens and filter by attention mask
+                    logits = output.logits[:, :-2, :].squeeze(-1)
+                    logits_filtered = logits[:, self.attention_mask.astype(bool)]
+
+                    outputs_list.append(logits_filtered.cpu())
                     embeddings_list.append(cell_embeddings.cpu())
+                    
+                    # Clear intermediate tensors
+                    del output, last_hidden, batch_processed, batch_attn_mask
         finally:
             embedding_hook.remove()
+            torch.cuda.empty_cache()
 
         return {
             'logits': torch.cat(outputs_list, dim=0),
@@ -385,7 +405,8 @@ class SteeringExperiment:
 
         try:
             with torch.no_grad():
-                for i in tqdm(range(0, len(cell_indices), self.batch_size), desc=f"Alpha={alpha}"):
+                pbar = tqdm(range(0, len(cell_indices), self.batch_size), desc=f"Alpha={alpha}")
+                for i in pbar:
                     batch_idx = cell_indices[i:i+self.batch_size]
                     batch_counts = adata[batch_idx].X
                     if hasattr(batch_counts, 'toarray'):
@@ -393,6 +414,10 @@ class SteeringExperiment:
 
                     # Preprocess
                     batch_processed = preprocess_counts(batch_counts, device=self.device)
+                    
+                    # Update progress bar with shape info to monitor memory usage
+                    seq_len = batch_processed.shape[1]
+                    pbar.set_postfix({"seq_len": seq_len})
 
                     # Prepare attention mask
                     batch_attn_mask = self.attn_mask_tensor.repeat(batch_processed.shape[0], 1)
@@ -413,11 +438,19 @@ class SteeringExperiment:
                     last_hidden = last_hidden[:, self.attention_mask.astype(bool), :]
                     cell_embeddings = last_hidden.mean(dim=1)
 
-                    outputs_list.append(output.logits.cpu())
+                    # Extract logits: remove depth tokens and filter by attention mask
+                    logits = output.logits[:, :-2, :].squeeze(-1)
+                    logits_filtered = logits[:, self.attention_mask.astype(bool)]
+
+                    outputs_list.append(logits_filtered.cpu())
                     embeddings_list.append(cell_embeddings.cpu())
+                    
+                    # Clear intermediate tensors
+                    del output, last_hidden, batch_processed, batch_attn_mask
         finally:
             embedding_hook.remove()
             steering_model.remove_hook()
+            torch.cuda.empty_cache()
 
         return {
             'logits': torch.cat(outputs_list, dim=0),
@@ -470,11 +503,14 @@ class SteeringExperiment:
         if len(config.steering_features) > 5:
             print(f"  ... and {len(config.steering_features) - 5} more features")
 
-        print("\nInterpretation:")
+        print("\nInterpretation (multiplicative steering):")
         print("  - Baseline: No steering applied")
-        print("  - alpha=0: Ablation (features turned OFF)")
-        print("  - alpha=1: Features at reference level (e.g., max)")
-        print("  - alpha=5: Features at 5x reference")
+        print("  - alpha=0: Ablation (all activations set to 0)")
+        print("  - alpha=0.5: Natural activations reduced by 50%")
+        print("  - alpha=1: Natural activations unchanged (no effect)")
+        print("  - alpha=2: Natural activations doubled")
+        print("  - alpha=5: Natural activations amplified 5x")
+        print("  Note: Only affects genes where feature is naturally active")
         print()
 
         results = {}
@@ -511,29 +547,29 @@ def load_feature_statistics(interpretation_dir: str) -> Dict[str, torch.Tensor]:
     Returns:
         Dict with 'max', 'mean', 'median', 'std', 'p90' tensors of shape (n_features,)
     """
-    cell_feature_path = os.path.join(interpretation_dir, "cell_feature_matrix.npy")
+    feature_gene_path = os.path.join(interpretation_dir, "feature_gene_matrix.npy")
 
-    if not os.path.exists(cell_feature_path):
-        raise FileNotFoundError(f"Cell-feature matrix not found at {cell_feature_path}")
+    if not os.path.exists(feature_gene_path):
+        raise FileNotFoundError(f"Gene-feature matrix not found at {feature_gene_path}")
 
-    cell_feature_matrix = np.load(cell_feature_path)
-    print(f"Loaded cell-feature matrix with shape: {cell_feature_matrix.shape}")
+    feature_gene_matrix = np.load(feature_gene_path)
+    print(f"Loaded gene-feature matrix with shape: {feature_gene_matrix.shape}")
 
-    # Handle shape: want (n_features, n_cells)
-    if cell_feature_matrix.shape[0] != 5120:
-        print("Detected shape (n_cells, n_features), transposing...")
-        cell_feature_matrix = cell_feature_matrix.T
+    # Handle shape: want (n_features, n_genes)
+    if feature_gene_matrix.shape[0] != 5120:
+        print("Detected shape (n_genes, n_features), transposing...")
+        feature_gene_matrix = feature_gene_matrix.T
 
-    n_features, n_cells = cell_feature_matrix.shape
-    print(f"Working with {n_features} features across {n_cells} cells")
+    n_features, n_genes = feature_gene_matrix.shape
+    print(f"Working with {n_features} features across {n_genes} genes")
 
     # Compute statistics across cells (axis=1)
     stats = {
-        'mean': torch.tensor(np.mean(cell_feature_matrix, axis=1), dtype=torch.float32),
-        'median': torch.tensor(np.median(cell_feature_matrix, axis=1), dtype=torch.float32),
-        'max': torch.tensor(np.max(cell_feature_matrix, axis=1), dtype=torch.float32),
-        'std': torch.tensor(np.std(cell_feature_matrix, axis=1), dtype=torch.float32),
-        'p90': torch.tensor(np.percentile(cell_feature_matrix, 90, axis=1), dtype=torch.float32),
+        'mean': torch.tensor(np.mean(feature_gene_matrix, axis=1), dtype=torch.float32),
+        'median': torch.tensor(np.median(feature_gene_matrix, axis=1), dtype=torch.float32),
+        'max': torch.tensor(np.max(feature_gene_matrix, axis=1), dtype=torch.float32),
+        'std': torch.tensor(np.std(feature_gene_matrix, axis=1), dtype=torch.float32),
+        'p90': torch.tensor(np.percentile(feature_gene_matrix, 90, axis=1), dtype=torch.float32),
     }
 
     print("\nFeature activation statistics:")
