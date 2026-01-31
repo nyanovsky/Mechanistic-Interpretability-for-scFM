@@ -23,6 +23,67 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ModelGenerator
 from aido_cell.utils import preprocess_counts
 
 
+class TopKSAE(nn.Module):
+    """Top-K Sparse Autoencoder."""
+
+    def __init__(self, input_dim=640, expansion=4, k=32):
+        super().__init__()
+        latent_dim = input_dim * expansion
+        self.encoder = nn.Linear(input_dim, latent_dim)
+        self.decoder = nn.Linear(latent_dim, input_dim)
+        self.k = k
+        self.latent_dim = latent_dim
+        self.input_dim = input_dim
+
+    def encode(self, x):
+        """Encode input to sparse latent representation."""
+        latents = self.encoder(x)
+        # Top-K: keep only k largest activations
+        topk_vals, topk_idx = latents.topk(self.k, dim=-1)
+        sparse_latents = torch.zeros_like(latents)
+        sparse_latents.scatter_(-1, topk_idx, topk_vals)
+        return sparse_latents
+
+    def forward(self, x):
+        """Forward pass: encode to sparse latents, decode back."""
+        sparse_latents = self.encode(x)
+        recon = self.decoder(sparse_latents)
+        return recon, sparse_latents
+
+
+def load_sae(sae_dir: str, device: str = 'cuda') -> TopKSAE:
+    """
+    Load trained SAE model from checkpoint.
+
+    Args:
+        sae_dir: Path to SAE directory containing topk_sae.pt
+        device: Device to load model to
+
+    Returns:
+        Loaded TopKSAE model
+    """
+    checkpoint_path = os.path.join(sae_dir, 'topk_sae.pt')
+
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"SAE checkpoint not found at {checkpoint_path}")
+
+    print(f"Loading SAE from {checkpoint_path}")
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+
+    input_dim = checkpoint['input_dim']
+    expansion = checkpoint['expansion']
+    k = checkpoint['k']
+
+    print(f"  Input dim: {input_dim}, Expansion: {expansion}x, Top-K: {k}")
+
+    sae = TopKSAE(input_dim=input_dim, expansion=expansion, k=k)
+    sae.load_state_dict(checkpoint['model_state_dict'])
+    sae = sae.to(device)
+    sae.eval()
+
+    return sae
+
+
 @dataclass
 class SteeringConfig:
     """Configuration for a steering experiment."""
@@ -71,37 +132,51 @@ class SAESteeringModel(nn.Module):
     """
     Wrapper around CellFoundationForMaskedLM with SAE-based steering.
 
-    This model hooks into a specified layer and applies SAE-based steering
-    by SETTING feature activations to alpha * reference_value.
+    This model hooks into a specified layer and applies SAE-based steering.
+    Supports two modes:
+    1. Full alpha vector: Pass alpha_vector (shape [n_features]) to scale all features
+    2. Sparse steering: Pass steering_features + alpha to scale specific features
     """
 
     def __init__(
         self,
         model: nn.Module,
         sae: nn.Module,
-        feature_stats: Dict[str, torch.Tensor],
         layer_idx: int,
-        steering_features: List[int],
-        alpha: float,
+        alpha_vector: Optional[torch.Tensor] = None,
+        steering_features: Optional[List[int]] = None,
+        alpha: Optional[float] = None,
+        feature_stats: Optional[Dict[str, torch.Tensor]] = None,
         reference: str = 'max'
     ):
         """
         Args:
             model: AIDO.Cell model
             sae: Trained SAE
-            feature_stats: Feature activation statistics dict
             layer_idx: Layer to steer (0-indexed)
-            steering_features: List of feature IDs to steer
-            alpha: Steering strength (Anthropic uses [-10, 10])
-            reference: Reference statistic ('max', 'mean', 'median')
+            alpha_vector: Full alpha vector (shape [n_features]). If provided, ignores steering_features/alpha.
+            steering_features: List of feature IDs to steer (used if alpha_vector is None)
+            alpha: Steering strength for sparse steering (used if alpha_vector is None)
+            feature_stats: Feature activation statistics dict (optional, for backward compat)
+            reference: Reference statistic ('max', 'mean', 'median') (optional, for backward compat)
         """
         super().__init__()
         self.model = model
         self.sae = sae
-        self.feature_stats = feature_stats
         self.layer_idx = layer_idx
-        self.steering_features = steering_features
-        self.alpha = alpha
+
+        # Determine steering mode
+        if alpha_vector is not None:
+            self.mode = 'full_vector'
+            self.alpha_vector = alpha_vector
+        elif steering_features is not None and alpha is not None:
+            self.mode = 'sparse'
+            self.steering_features = steering_features
+            self.alpha = alpha
+        else:
+            raise ValueError("Must provide either alpha_vector OR (steering_features + alpha)")
+
+        self.feature_stats = feature_stats
         self.reference = reference
 
         self.hook_handle = None
@@ -109,24 +184,13 @@ class SAESteeringModel(nn.Module):
 
     def _register_hook(self):
         """Register forward hook on the specified layer."""
-        # Pre-load reference values to GPU once to avoid allocation churn in hook
-        self.reference_values = self.feature_stats[self.reference].to(next(self.model.parameters()).device)
-        
+        # Pre-load reference values if using sparse mode with feature_stats
+        if self.mode == 'sparse' and self.feature_stats is not None:
+            self.reference_values = self.feature_stats[self.reference].to(next(self.model.parameters()).device)
+
         def steering_hook(module, input, output):
             """
             Hook that captures activations, applies SAE steering, and returns steered activations.
-
-            Anthropic's approach:
-            1. Encode activations with SAE to get features
-            2. SET steering features to alpha * reference_value (REPLACE, not add)
-            3. Reconstruct from modified features
-            4. Add back the SAE reconstruction error
-
-            Args:
-                output: Tuple of (hidden_states, ...) from the layer
-
-            Returns:
-                Tuple with steered hidden_states as first element
             """
             hidden_states = output[0]  # Shape: (batch, seq_len, hidden_size)
 
@@ -148,10 +212,7 @@ class SAESteeringModel(nn.Module):
         1. Encode: features = SAE.encode(x)
         2. Reconstruct: x_recon = features @ decoder
         3. Compute error: error = x - x_recon
-        4. Steer: features_steered[i] *= alpha for i in steering_features
-           - This scales natural activations: genes with high natural activation
-             get amplified, genes with zero activation stay zero
-           - Preserves sparsity and biological relevance
+        4. Steer: features_steered *= alpha_vector (or scale specific features)
         5. Reconstruct steered: x_recon_steered = features_steered @ decoder
         6. Return: x_steered = x_recon_steered + error
 
@@ -165,39 +226,43 @@ class SAESteeringModel(nn.Module):
         dtype = hidden_states.dtype
 
         # Flatten batch and sequence dimensions for SAE
-        flat_states = hidden_states.reshape(-1, hidden_size)  # (batch*seq_len, hidden_size)
+        flat_states = hidden_states.reshape(-1, hidden_size)
 
         with torch.no_grad():
             # Step 1: Encode with SAE
-            # Note: Explicit float() cast increases memory but might be needed if SAE is fp32
-            features = self.sae.encode(flat_states.float())  # (batch*seq_len, n_features)
+            features = self.sae.encode(flat_states.float())
 
             # Step 2: Get original reconstruction and error
-            # Use decoder weight matrix transposed: (latent_dim, input_dim)
             decoder_weights = self.sae.decoder.weight.T
             x_reconstructed = features @ decoder_weights
-            
-            # Keep error in high precision for now, or match input?
             error = flat_states.float() - x_reconstructed
 
-            # Step 3: STEER - SCALE natural feature activations
-            features_steered = features.clone()
-
-            # Scale natural activations by alpha (multiplicative steering)
-            # This preserves sparsity: only amplifies/dampens where feature is naturally active
-            for feat_id in self.steering_features:
-                features_steered[:, feat_id] *= self.alpha
+            # Step 3: STEER - Apply alpha scaling
+            if self.mode == 'full_vector':
+                # Full vector mode: multiply all features by alpha_vector
+                features_steered = features * self.alpha_vector
+            else:
+                # Sparse mode: scale only specified features
+                features_steered = features.clone()
+                for feat_id in self.steering_features:
+                    features_steered[:, feat_id] *= self.alpha
 
             # Step 4: Reconstruct from steered features
             x_reconstructed_steered = features_steered @ decoder_weights
 
-            # Step 5: Add back error term (Anthropic's approach)
+            # Step 5: Add back error term
             x_steered = x_reconstructed_steered + error
 
         # Reshape back to (batch, seq_len, hidden_size)
         steered_states = x_steered.reshape(batch_size, seq_len, hidden_size).to(dtype)
 
         return steered_states
+
+    def update_alpha_vector(self, alpha_vector: torch.Tensor):
+        """Update the alpha vector (for optimization)."""
+        if self.mode != 'full_vector':
+            raise ValueError("Can only update alpha_vector in full_vector mode")
+        self.alpha_vector = alpha_vector
 
     def forward(
         self,

@@ -21,29 +21,7 @@ from tqdm import tqdm
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../ModelGenerator/huggingface/aido.cell'))
 from aido_cell.utils import align_adata
 
-
-class TopKSAE(torch.nn.Module):
-    """Top-K Sparse Autoencoder (must match train_sae.py)."""
-
-    def __init__(self, input_dim=640, expansion=4, k=32):
-        super().__init__()
-        latent_dim = input_dim * expansion
-        self.encoder = torch.nn.Linear(input_dim, latent_dim)
-        self.decoder = torch.nn.Linear(latent_dim, input_dim)
-        self.k = k
-        self.latent_dim = latent_dim
-
-    def encode(self, x):
-        latents = self.encoder(x)
-        topk_vals, topk_idx = latents.topk(self.k, dim=-1)
-        sparse_latents = torch.zeros_like(latents)
-        sparse_latents.scatter_(-1, topk_idx, topk_vals)
-        return sparse_latents
-
-    def forward(self, x):
-        sparse_latents = self.encode(x)
-        recon = self.decoder(sparse_latents)
-        return recon, sparse_latents
+from steering_utils import TopKSAE
 
 
 def get_expressed_genes_mask(raw_data_path, min_mean_expr=0.01, min_pct_cells=0.5):
@@ -177,163 +155,142 @@ def compute_feature_gene_activations_mean(sae, h5_path, device, batch_size=8):
 def compute_feature_gene_activations_custom(sae, h5_path, device, batch_size=8,
                                            cell_pr_scale=0.6, min_cells=10,
                                            feature_batch_size=100):
-    """Compute feature-gene matrix using custom double-adaptive pooling.
+    """Compute feature-gene matrix using optimized sparse accumulation.
 
-    Two-pass strategy for memory efficiency:
-    Pass 1: Compute cell activities and Cell PR, determine selected cells per feature
-    Pass 2: Process features in batches, collecting activations and computing percentiles
+    Replaces the previous two-pass "custom" strategy with a single-pass sparse approach.
+    Instead of filtering cells (which is ineffective due to high Cell PR), this method:
+    1. Streams through all cells once.
+    2. Collects ALL non-zero activations as (feature, gene, value) triplets.
+       (Approx 1.3B entries for 2630 cells * 16k genes * 32 active features ~ 11GB RAM).
+    3. Sorts and computes the 95th percentile directly from sparse data.
 
     Args:
         sae: The SAE model
-        h5_path: Path to HDF5 file with activations [n_cells, n_genes, hidden_dim]
+        h5_path: Path to HDF5 file
         device: 'cuda' or 'cpu'
-        batch_size: Number of cells to process in parallel (default: 8)
-        cell_pr_scale: Scale factor for selecting cells (default: 0.6 = 60% of Cell PR)
-        min_cells: Minimum cells to use per feature (default: 10)
-        feature_batch_size: Number of features to process together (default: 100)
+        batch_size: Number of cells to process in parallel
+        cell_pr_scale, min_cells, feature_batch_size: Ignored (kept for API compatibility)
 
     Returns:
         feature_gene_matrix: [n_features, n_genes] array
-        cell_pr_values: [n_features] array of Cell PR values
+        cell_pr_values: [n_features] array (dummy values, as we don't compute dense cell scores anymore)
     """
-    print(f"Computing feature-gene matrix with CUSTOM double-adaptive pooling (batch_size={batch_size})...")
-    print(f"  Cell PR scale: {cell_pr_scale}")
-    print(f"  Min cells per feature: {min_cells}")
-    print(f"  Feature batch size: {feature_batch_size}")
-
+    print(f"Computing feature-gene matrix with OPTIMIZED SPARSE accumulation (batch_size={batch_size})...")
+    
+    # 1. Collect Triplets
+    # We expect roughly n_cells * n_genes * k entries
+    # 2630 * 16000 * 32 = 1.34e9
+    # We will use lists of arrays to collect chunks, then concat
+    
+    all_feats = []
+    all_genes = []
+    all_vals = []
+    
+    total_activations = 0
+    
     with h5py.File(h5_path, 'r') as f:
         n_cells, n_genes, hidden_dim = f['activations'].shape
         n_features = sae.latent_dim
-
-        # ==================== PASS 1: Compute Cell Activities ====================
-        print(f"\nPASS 1: Computing cell activities and Cell PR...")
-        # cell_activities: [n_features, n_cells]
-        cell_activities = np.zeros((n_features, n_cells), dtype=np.float32)
-
-        n_cell_batches = (n_cells + batch_size - 1) // batch_size
-
-        for batch_idx in tqdm(range(n_cell_batches), desc="Computing cell activities"):
+        
+        n_batches = (n_cells + batch_size - 1) // batch_size
+        
+        print(f"PASS 1: Streaming {n_cells} cells to collect sparse activations...")
+        
+        for batch_idx in tqdm(range(n_batches), desc="Collecting activations"):
             batch_start = batch_idx * batch_size
             batch_end = min(batch_start + batch_size, n_cells)
             current_batch_size = batch_end - batch_start
-
+            
             # Load batch: [batch_size, n_genes, hidden_dim]
             batch_activations = torch.from_numpy(
                 f['activations'][batch_start:batch_end, :, :].astype(np.float32)
             ).to(device)
-
-            # Reshape to [batch_size * n_genes, hidden_dim] for encoding
+            
+            # Reshape: [batch_size * n_genes, hidden_dim]
             batch_activations_flat = batch_activations.reshape(-1, hidden_dim)
-
-            # Encode through SAE: [batch_size * n_genes, n_features]
+            
+            # Encode: [batch_size * n_genes, n_features] (Sparse)
+            # We need the topk indices and values directly to avoid creating the dense tensor
+            
             with torch.no_grad():
-                sparse_latents_flat = sae.encode(batch_activations_flat)
+                latents = sae.encoder(batch_activations_flat)
+                topk_vals, topk_idx = latents.topk(sae.k, dim=-1)
+                
+                # Flatten to list of triplets
+                vals_flat = topk_vals.flatten().cpu().numpy().astype(np.float32)
+                feats_flat = topk_idx.flatten().cpu().numpy().astype(np.int16)
+                
+                # Construct indices corresponding to vals_flat
+                rows = np.arange(current_batch_size * n_genes).repeat(sae.k)
+                gene_indices = (rows % n_genes).astype(np.int16)
+                
+                all_feats.append(feats_flat)
+                all_genes.append(gene_indices)
+                all_vals.append(vals_flat)
+                
+                total_activations += len(vals_flat)
 
-            # Reshape back: [batch_size, n_genes, n_features]
-            sparse_latents = sparse_latents_flat.reshape(current_batch_size, n_genes, n_features)
+    print(f"Collected {total_activations:,} non-zero activations.")
+    print("Concatenating arrays...")
+    
+    # Concat into single large arrays
+    feats_arr = np.concatenate(all_feats)
+    genes_arr = np.concatenate(all_genes)
+    vals_arr = np.concatenate(all_vals)
+    
+    # Clear lists to free memory
+    del all_feats, all_genes, all_vals
+    import gc
+    gc.collect()
+    
+    # 2. Sort
+    print("Sorting by Feature then Gene (this may take a moment)...")
+    sort_idx = np.lexsort((genes_arr, feats_arr))
+    
+    feats_sorted = feats_arr[sort_idx]
+    genes_sorted = genes_arr[sort_idx]
+    vals_sorted = vals_arr[sort_idx]
+    
+    del feats_arr, genes_arr, vals_arr, sort_idx
+    gc.collect()
+    
+    # 3. Compute Percentiles
+    print("Computing 95th percentiles...")
+    
+    feature_gene_matrix = np.zeros((n_features, n_genes), dtype=np.float32)
+    
+    # Identify boundaries where (feature, gene) changes
+    keys = (feats_sorted.astype(np.int64) << 16) | genes_sorted.astype(np.int64)
+    unique_keys, indices = np.unique(keys, return_index=True)
+    
+    # 95th percentile cutoff
+    cutoff_idx = int((1.0 - 0.95) * n_cells)
+    
+    indices = np.append(indices, len(keys))
+    
+    for i in tqdm(range(len(unique_keys)), desc="Reducing groups"):
+        start_pos = indices[i]
+        end_pos = indices[i+1]
+        
+        # Decode key
+        key = unique_keys[i]
+        feat_idx = (key >> 16) & 0xFFFF
+        gene_idx = key & 0xFFFF
+        
+        # Get values for this group
+        group_vals = vals_sorted[start_pos:end_pos]
+        n_vals = len(group_vals)
+        
+        if n_vals > cutoff_idx:
+            k = cutoff_idx + 1
+            val = np.partition(group_vals, -k)[-k]
+            feature_gene_matrix[feat_idx, gene_idx] = val
+        else:
+            feature_gene_matrix[feat_idx, gene_idx] = 0.0
 
-            # Sum across genes for each cell: [batch_size, n_features]
-            cell_activities_batch = sparse_latents.sum(dim=1).cpu().numpy()
-
-            # Store in cell_activities: [n_features, n_cells]
-            cell_activities[:, batch_start:batch_end] = cell_activities_batch.T
-
-        # Compute Cell PR for each feature
-        print("Computing Cell PR for each feature...")
-        cell_pr_values = compute_participation_ratio(cell_activities, axis=1)
-
-        print(f"  Cell PR statistics:")
-        print(f"    Min: {cell_pr_values.min():.2f}")
-        print(f"    Max: {cell_pr_values.max():.2f}")
-        print(f"    Mean: {cell_pr_values.mean():.2f}")
-        print(f"    Median: {np.median(cell_pr_values):.2f}")
-
-        # Determine selected cells for each feature
-        print("Determining selected cells for each feature...")
-        selected_cells_per_feature = {}
-        for feat_idx in range(n_features):
-            n_cells_to_use = int(cell_pr_values[feat_idx] * cell_pr_scale)
-            n_cells_to_use = max(min_cells, min(n_cells_to_use, n_cells))
-
-            # Select top cells by activity
-            cell_activity_feat = cell_activities[feat_idx]
-            top_cell_indices = np.argsort(cell_activity_feat)[::-1][:n_cells_to_use]
-            selected_cells_per_feature[feat_idx] = set(top_cell_indices)
-
-        # ==================== PASS 2: Collect Activations and Compute Percentiles ====================
-        print(f"\nPASS 2: Computing 95th percentiles (processing {n_features} features in batches of {feature_batch_size})...")
-
-        feature_gene_matrix = np.zeros((n_features, n_genes), dtype=np.float32)
-        n_feature_batches = (n_features + feature_batch_size - 1) // feature_batch_size
-
-        for feat_batch_idx in range(n_feature_batches):
-            feat_batch_start = feat_batch_idx * feature_batch_size
-            feat_batch_end = min(feat_batch_start + feature_batch_size, n_features)
-            feature_batch = range(feat_batch_start, feat_batch_end)
-
-            print(f"\n  Processing features {feat_batch_start}-{feat_batch_end-1} ({len(feature_batch)} features)...")
-
-            # Pre-allocate arrays for this feature batch (avoids list over-allocation)
-            feature_gene_arrays = {}
-            feature_cell_counters = {}  # Track how many cells we've filled in
-
-            for feat_idx in feature_batch:
-                n_selected = len(selected_cells_per_feature[feat_idx])
-                # Pre-allocate: [n_selected_cells, n_genes]
-                feature_gene_arrays[feat_idx] = np.zeros((n_selected, n_genes), dtype=np.float32)
-                feature_cell_counters[feat_idx] = 0
-
-            # Create mapping from cell_idx to position in pre-allocated array
-            cell_to_position = {}
-            for feat_idx in feature_batch:
-                cell_to_position[feat_idx] = {
-                    cell_idx: pos
-                    for pos, cell_idx in enumerate(sorted(selected_cells_per_feature[feat_idx]))
-                }
-
-            # Make one pass through all cells, collecting activations for this feature batch
-            for cell_batch_idx in tqdm(range(n_cell_batches), desc=f"  Collecting activations"):
-                cell_batch_start = cell_batch_idx * batch_size
-                cell_batch_end = min(cell_batch_start + batch_size, n_cells)
-                current_batch_size = cell_batch_end - cell_batch_start
-
-                # Load batch: [batch_size, n_genes, hidden_dim]
-                batch_activations = torch.from_numpy(
-                    f['activations'][cell_batch_start:cell_batch_end, :, :].astype(np.float32)
-                ).to(device)
-
-                # Reshape to [batch_size * n_genes, hidden_dim] for encoding
-                batch_activations_flat = batch_activations.reshape(-1, hidden_dim)
-
-                # Encode through SAE: [batch_size * n_genes, n_features]
-                with torch.no_grad():
-                    sparse_latents_flat = sae.encode(batch_activations_flat)
-
-                # Reshape back: [batch_size, n_genes, n_features]
-                sparse_latents = sparse_latents_flat.reshape(current_batch_size, n_genes, n_features)
-
-                # Extract only features in current batch to save memory
-                # [batch_size, n_genes, feature_batch_size]
-                sparse_latents_subset = sparse_latents[:, :, feat_batch_start:feat_batch_end].cpu().numpy()
-
-                # For each cell in batch, check if any feature in current batch needs it
-                for i in range(current_batch_size):
-                    cell_idx = cell_batch_start + i
-
-                    for local_feat_idx, feat_idx in enumerate(feature_batch):
-                        if cell_idx in selected_cells_per_feature[feat_idx]:
-                            # Get position in pre-allocated array
-                            pos = cell_to_position[feat_idx][cell_idx]
-                            # Fill in the pre-allocated array (no copy needed!)
-                            feature_gene_arrays[feat_idx][pos] = sparse_latents_subset[i, :, local_feat_idx]
-
-            # Compute percentiles for this feature batch
-            print(f"  Computing percentiles for features {feat_batch_start}-{feat_batch_end-1}...")
-            for feat_idx in feature_batch:
-                # Compute 95th percentile across cells (axis=0)
-                # feature_gene_arrays[feat_idx] is already [n_selected_cells, n_genes]
-                feature_gene_matrix[feat_idx] = np.percentile(feature_gene_arrays[feat_idx], 95, axis=0)
-
+    # Dummy return for API compatibility
+    cell_pr_values = np.zeros(n_features)
+    
     return feature_gene_matrix, cell_pr_values
 
 

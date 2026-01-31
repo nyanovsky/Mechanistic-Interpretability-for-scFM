@@ -39,6 +39,8 @@ except ImportError:
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../ModelGenerator/huggingface/aido.cell'))
 from aido_cell.utils import align_adata
 
+from steering_utils import TopKSAE
+
 # CLI arguments
 def parse_args():
     parser = argparse.ArgumentParser(description='Interpret SAE features via GO enrichment (parallel)')
@@ -101,31 +103,6 @@ print(f"SAE: {SAE_MODEL_FILE}")
 print(f"Input (pre-computed data): {INPUT_DIR}")
 print(f"Output (new GO enrichments): {OUTPUT_DIR}")
 print(f"Parallelization: {args.workers} workers, {args.delay}s delay")
-
-
-class TopKSAE(torch.nn.Module):
-    """Top-K Sparse Autoencoder (must match train_sae.py)."""
-
-    def __init__(self, input_dim=640, expansion=4, k=32):
-        super().__init__()
-        latent_dim = input_dim * expansion
-        self.encoder = torch.nn.Linear(input_dim, latent_dim)
-        self.decoder = torch.nn.Linear(latent_dim, input_dim)
-        self.k = k
-        self.latent_dim = latent_dim
-
-    def encode(self, x):
-        # Pure Top-K: no ReLU, sparsity comes from top-k selection
-        latents = self.encoder(x)
-        topk_vals, topk_idx = latents.topk(self.k, dim=-1)
-        sparse_latents = torch.zeros_like(latents)
-        sparse_latents.scatter_(-1, topk_idx, topk_vals)
-        return sparse_latents
-
-    def forward(self, x):
-        sparse_latents = self.encode(x)
-        recon = self.decoder(sparse_latents)
-        return recon, sparse_latents
 
 
 def load_gene_names(h5_path, raw_data_path):

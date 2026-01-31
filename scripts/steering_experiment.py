@@ -33,72 +33,10 @@ from aido_cell.utils import align_adata
 from steering_utils import (
     SteeringConfig,
     SteeringExperiment,
-    load_feature_statistics
+    load_feature_statistics,
+    TopKSAE,
+    load_sae
 )
-
-
-class TopKSAE(nn.Module):
-    """Top-K Sparse Autoencoder (must match train_sae.py)."""
-
-    def __init__(self, input_dim=640, expansion=4, k=32):
-        super().__init__()
-        latent_dim = input_dim * expansion
-        self.encoder = nn.Linear(input_dim, latent_dim)
-        self.decoder = nn.Linear(latent_dim, input_dim)
-        self.k = k
-        self.latent_dim = latent_dim
-
-    def encode(self, x):
-        """Encode input to sparse latent representation."""
-        latents = self.encoder(x)
-        # Top-K: keep only k largest activations
-        topk_vals, topk_idx = latents.topk(self.k, dim=-1)
-        sparse_latents = torch.zeros_like(latents)
-        sparse_latents.scatter_(-1, topk_idx, topk_vals)
-        return sparse_latents
-
-    def forward(self, x):
-        """Forward pass: encode to sparse latents, decode back."""
-        sparse_latents = self.encode(x)
-        recon = self.decoder(sparse_latents)
-        return recon, sparse_latents
-
-
-def load_sae(sae_dir: str, device: str) -> TopKSAE:
-    """
-    Load trained SAE model.
-
-    Args:
-        sae_dir: Path to SAE directory
-        device: Device to load model on
-
-    Returns:
-        Loaded SAE model
-    """
-    checkpoint_path = os.path.join(sae_dir, 'topk_sae.pt')
-
-    if not os.path.exists(checkpoint_path):
-        raise FileNotFoundError(f"SAE checkpoint not found at {checkpoint_path}")
-
-    print(f"Loading SAE from {checkpoint_path}")
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-
-    # Extract hyperparameters
-    input_dim = checkpoint['input_dim']
-    expansion = checkpoint['expansion']
-    k = checkpoint['k']
-
-    print(f"  Input dim: {input_dim}")
-    print(f"  Expansion: {expansion}x (latent dim: {input_dim * expansion})")
-    print(f"  Top-K: {k}")
-
-    # Instantiate model
-    sae = TopKSAE(input_dim=input_dim, expansion=expansion, k=k)
-    sae.load_state_dict(checkpoint['model_state_dict'])
-    sae = sae.to(device)
-    sae.eval()
-
-    return sae
 
 
 def get_experiment_configs() -> dict:

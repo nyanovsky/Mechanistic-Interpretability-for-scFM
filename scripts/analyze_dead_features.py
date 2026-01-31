@@ -12,32 +12,10 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
+from steering_utils import TopKSAE
+
 BASE_DIR = "/biodata/nyanovsky/datasets/pbmc3k"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-
-class TopKSAE(torch.nn.Module):
-    """Top-K Sparse Autoencoder (must match train_sae.py)."""
-
-    def __init__(self, input_dim=640, expansion=4, k=32):
-        super().__init__()
-        latent_dim = input_dim * expansion
-        self.encoder = torch.nn.Linear(input_dim, latent_dim)
-        self.decoder = torch.nn.Linear(latent_dim, input_dim)
-        self.k = k
-        self.latent_dim = latent_dim
-
-    def encode(self, x):
-        latents = self.encoder(x)
-        topk_vals, topk_idx = latents.topk(self.k, dim=-1)
-        sparse_latents = torch.zeros_like(latents)
-        sparse_latents.scatter_(-1, topk_idx, topk_vals)
-        return sparse_latents
-
-    def forward(self, x):
-        sparse_latents = self.encode(x)
-        recon = self.decoder(sparse_latents)
-        return recon, sparse_latents
 
 
 def analyze_layer(layer, expansion=8, k=32):
