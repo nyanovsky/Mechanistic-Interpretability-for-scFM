@@ -1,21 +1,38 @@
 """Interpret SAE features via GO enrichment and cell type correlation (PARALLELIZED VERSION).
 
 For each SAE feature:
-1. Find genes with highest mean activation across cells
+1. Find genes with highest mean activation across cells (from pre-computed matrices)
 2. Run GO enrichment on top genes (PARALLELIZED)
 3. Correlate feature activation with cell types
 
 This version parallelizes GO enrichment API calls for significantly faster execution.
 
-IMPORTANT: This script reads pre-computed matrices from interpretations_fixed_30_backup
-but saves new GO enrichment results to interpretations_filter_zero_expressed.
+IMPORTANT: This script requires pre-computed matrices. Run compute_feature_matrices.py first.
+
+Usage:
+    # If raw data has cell_type column:
+    python scripts/interpret_sae_parallel.py \\
+        --matrix-dir /path/to/interpretations \\
+        --raw-data /path/to/data.h5ad \\
+        --plot-dir /path/to/plots
+
+    # If cell types are in a separate processed file (e.g., PBMC3K):
+    python scripts/interpret_sae_parallel.py \\
+        --matrix-dir /path/to/interpretations \\
+        --raw-data /path/to/raw.h5ad \\
+        --processed-data /path/to/processed.h5ad \\
+        --celltype-col louvain \\
+        --plot-dir /path/to/plots
+
+Arguments:
+    --raw-data: Used for gene alignment via AIDO.Cell's align_adata() and cell type labels if available
+    --processed-data: Optional, only needed if raw data lacks the cell type column
+    --celltype-col: Column name in .obs for cell type labels (default: cell_type)
 """
 
 import os
 import sys
 import argparse
-import torch
-import h5py
 import numpy as np
 import pandas as pd
 import anndata as ad
@@ -23,7 +40,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 from scipy.stats import spearmanr
-from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 
@@ -39,53 +55,42 @@ except ImportError:
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../ModelGenerator/huggingface/aido.cell'))
 from aido_cell.utils import align_adata
 
-from steering_utils import TopKSAE
-
 # CLI arguments
 def parse_args():
     parser = argparse.ArgumentParser(description='Interpret SAE features via GO enrichment (parallel)')
-    parser.add_argument('--layer', type=int, default=12,
-                        help='AIDO.Cell layer (12 or 15)')
-    parser.add_argument('--expansion', type=int, default=8,
-                        help='SAE expansion factor (4 or 8)')
-    parser.add_argument('--k', type=int, default=32,
-                        help='Top-K sparsity')
+
+    # Required paths
+    parser.add_argument('--matrix-dir', type=str, required=True,
+                        help='Directory containing pre-computed matrices (feature_gene_matrix.npy, etc.)')
+    parser.add_argument('--raw-data', type=str, required=True,
+                        help='Path to raw h5ad file (used for gene alignment via AIDO.Cell)')
+    parser.add_argument('--plot-dir', type=str, required=True,
+                        help='Directory to save plots')
+
+    # Optional paths
+    parser.add_argument('--processed-data', type=str, default=None,
+                        help='Path to processed h5ad file with cell type labels (only needed if raw data lacks cell_type column)')
+
+    # Analysis parameters
     parser.add_argument('--n_features', type=int, default=50,
                         help='Number of top features to analyze for GO enrichment')
     parser.add_argument('--workers', type=int, default=8,
                         help='Number of parallel workers for GO enrichment (default: 8)')
     parser.add_argument('--delay', type=float, default=0.1,
                         help='Delay between API calls in seconds (default: 0.1)')
-    parser.add_argument('--online', action='store_true',
-                        help='Use online SAE directory (sae_k_{k}_{latent_dim}_online)')
+    parser.add_argument('--celltype-col', type=str, default='cell_type',
+                        help='Column name in .obs for cell type labels (default: cell_type)')
     return parser.parse_args()
 
 args = parse_args()
 
-# Build paths from arguments
-INPUT_DIM = 640
-LATENT_DIM = INPUT_DIM * args.expansion
-BASE_DIR = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{args.layer}"
-SAE_SUFFIX = "_online" if args.online else ""
-SAE_DIR = f"{BASE_DIR}/sae_k_{args.k}_{LATENT_DIM}{SAE_SUFFIX}"
-
-ACTIVATIONS_FILE = f"{BASE_DIR}/layer{args.layer}_activations.h5"
-SAE_MODEL_FILE = f"{SAE_DIR}/topk_sae.pt"
-
-# INPUT: Read pre-computed data from fixed_30_backup
-INPUT_DIR = f"{SAE_DIR}/interpretations_fixed_30_backup"
-# OUTPUT: Save new GO enrichments to this folder
-OUTPUT_DIR = f"{SAE_DIR}/interpretations_filter_zero_expressed"
-
-INPUT_DIR = OUTPUT_DIR
-
-PLOT_DIR = f"../plots/sae/layer_{args.layer}"
-
-# Static paths (don't depend on layer/SAE config)
-PROCESSED_DATA_FILE = "../data/pbmc/pbmc3k_processed.h5ad"
-RAW_DATA_FILE = "../data/pbmc/pbmc3k_raw.h5ad"
-
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# Paths from CLI arguments
+MATRIX_DIR = args.matrix_dir
+OUTPUT_DIR = MATRIX_DIR  # Save GO enrichment results to same directory
+PLOT_DIR = args.plot_dir
+RAW_DATA_FILE = args.raw_data
+PROCESSED_DATA_FILE = args.processed_data  # Optional, only needed if raw data lacks cell_type
+CELLTYPE_COL = args.celltype_col
 
 # Analysis parameters
 TOP_GENES_PER_FEATURE = 30  # Number of top genes for GO enrichment (legacy, only used if USE_ADAPTIVE_SELECTION=False)
@@ -98,19 +103,30 @@ MAX_GENES_PER_FEATURE = 100  # Maximum to avoid dilution
 PR_SCALE_FACTOR = 0.6  # Select 60% of effective genes (PR * 0.6)
 USE_ACTIVATION_THRESHOLD = False  # Optional: filter genes <10% of max activation
 
-print(f"Configuration: Layer {args.layer}, {args.expansion}x expansion (K={args.k})")
-print(f"SAE: {SAE_MODEL_FILE}")
-print(f"Input (pre-computed data): {INPUT_DIR}")
-print(f"Output (new GO enrichments): {OUTPUT_DIR}")
-print(f"Parallelization: {args.workers} workers, {args.delay}s delay")
+print(f"Configuration:")
+print(f"  Matrix directory: {MATRIX_DIR}")
+print(f"  Raw data: {RAW_DATA_FILE}")
+if PROCESSED_DATA_FILE:
+    print(f"  Processed data: {PROCESSED_DATA_FILE}")
+print(f"  Cell type column: {CELLTYPE_COL}")
+print(f"  Plot directory: {PLOT_DIR}")
+print(f"  Parallelization: {args.workers} workers, {args.delay}s delay")
 
 
-def load_gene_names(h5_path, raw_data_path):
-    """Load gene names from original data aligned with activations."""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    raw_path = os.path.join(script_dir, raw_data_path)
+def load_gene_names(raw_data_path):
+    """Load gene names from original data aligned with AIDO.Cell attention mask.
 
-    adata_raw = ad.read_h5ad(raw_path)
+    Args:
+        raw_data_path: Path to raw h5ad file (can be absolute or relative to script)
+    """
+    # Handle both absolute and relative paths
+    if not os.path.isabs(raw_data_path):
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        raw_data_path = os.path.join(script_dir, raw_data_path)
+
+    adata_raw = ad.read_h5ad(raw_data_path)
+    # Make gene names unique to avoid reindex errors
+    adata_raw.var_names_make_unique()
     adata_aligned, attention_mask = align_adata(adata_raw)
 
     # Get gene names for valid genes
@@ -125,7 +141,7 @@ def get_expressed_genes(raw_data_path, min_mean_expr=0.01, min_pct_cells=0.5):
     from genes like olfactory receptors that have embeddings but no expression.
 
     Args:
-        raw_data_path: Path to raw h5ad file
+        raw_data_path: Path to raw h5ad file (can be absolute or relative to script)
         min_mean_expr: Minimum mean expression across cells (default: 0.01)
         min_pct_cells: Minimum % of cells with nonzero expression (default: 0.5%)
 
@@ -134,10 +150,14 @@ def get_expressed_genes(raw_data_path, min_mean_expr=0.01, min_pct_cells=0.5):
         expressed_names: Names of expressed genes
         expressed_mask: Boolean mask for expressed genes
     """
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    raw_path = os.path.join(script_dir, raw_data_path)
+    # Handle both absolute and relative paths
+    if not os.path.isabs(raw_data_path):
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        raw_data_path = os.path.join(script_dir, raw_data_path)
 
-    adata_raw = ad.read_h5ad(raw_path)
+    adata_raw = ad.read_h5ad(raw_data_path)
+    # Make gene names unique to avoid reindex errors
+    adata_raw.var_names_make_unique()
     adata_aligned, attention_mask = align_adata(adata_raw)
 
     X = adata_aligned.X
@@ -158,75 +178,6 @@ def get_expressed_genes(raw_data_path, min_mean_expr=0.01, min_pct_cells=0.5):
     expressed_names = [gene_names[i] for i in expressed_indices]
 
     return expressed_indices, expressed_names, expressed_mask
-
-
-def compute_feature_gene_activations(sae, h5_path, batch_size=1000):
-    """Compute mean SAE feature activation per gene across all cells.
-
-    Returns: [n_features, n_genes] matrix of mean activations
-    """
-    print("Computing feature-gene activation matrix...")
-
-    with h5py.File(h5_path, 'r') as f:
-        n_cells, n_genes, hidden_dim = f['activations'].shape
-        n_features = sae.latent_dim
-
-        # Accumulate activations per gene
-        feature_gene_sum = np.zeros((n_features, n_genes), dtype=np.float32)
-
-        # Process cell by cell to manage memory
-        for cell_idx in tqdm(range(n_cells), desc="Processing cells"):
-            # Load all genes for this cell [n_genes, hidden_dim]
-            cell_activations = torch.from_numpy(
-                f['activations'][cell_idx, :, :].astype(np.float32)
-            ).to(DEVICE)
-
-            # Encode through SAE [n_genes, n_features]
-            with torch.no_grad():
-                sparse_latents = sae.encode(cell_activations)
-
-            # Accumulate [n_features, n_genes]
-            feature_gene_sum += sparse_latents.T.cpu().numpy()
-
-        # Average across cells
-        feature_gene_mean = feature_gene_sum / n_cells
-
-    return feature_gene_mean
-
-
-def compute_cell_feature_activations(sae, h5_path, expressed_mask=None):
-    """Compute mean SAE feature activation per cell across expressed genes.
-
-    Args:
-        sae: The SAE model
-        h5_path: Path to HDF5 file with activations
-        expressed_mask: Boolean mask for expressed genes. If None, uses all genes.
-
-    Returns: [n_cells, n_features] matrix of mean activations
-    """
-    print("Computing cell-feature activation matrix...")
-
-    with h5py.File(h5_path, 'r') as f:
-        n_cells, n_genes, hidden_dim = f['activations'].shape
-        n_features = sae.latent_dim
-
-        cell_feature_matrix = np.zeros((n_cells, n_features), dtype=np.float32)
-
-        for cell_idx in tqdm(range(n_cells), desc="Processing cells"):
-            cell_activations = torch.from_numpy(
-                f['activations'][cell_idx, :, :].astype(np.float32)
-            ).to(DEVICE)
-
-            with torch.no_grad():
-                sparse_latents = sae.encode(cell_activations)
-
-            # Mean activation across EXPRESSED genes only
-            if expressed_mask is not None:
-                cell_feature_matrix[cell_idx] = sparse_latents[expressed_mask].mean(dim=0).cpu().numpy()
-            else:
-                cell_feature_matrix[cell_idx] = sparse_latents.mean(dim=0).cpu().numpy()
-
-    return cell_feature_matrix
 
 
 def select_genes_adaptive(feature_activations, pr, use_threshold=False,
@@ -353,110 +304,91 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # Check files exist
-    if not os.path.exists(ACTIVATIONS_FILE):
-        print(f"ERROR: Activations file not found at {ACTIVATIONS_FILE}")
-        return
-    if not os.path.exists(SAE_MODEL_FILE):
-        print(f"ERROR: SAE model not found at {SAE_MODEL_FILE}")
-        return
-    if not os.path.exists(INPUT_DIR):
-        print(f"Creating output directory at {INPUT_DIR}")
-        os.makedirs(INPUT_DIR, exist_ok=True)
-
     print("="*60)
     print("SAE Feature Interpretation (PARALLELIZED)")
     print("="*60)
 
-    # Load SAE model
-    print("\nLoading SAE model...")
-    checkpoint = torch.load(SAE_MODEL_FILE, map_location=DEVICE)
+    # ==================== Load Pre-computed Matrices ====================
+    print("\n" + "="*60)
+    print("Loading Pre-computed Matrices")
+    print("="*60)
 
-    # Handle both checkpoint formats:
-    # - Offline: {'model_state_dict': ..., 'input_dim': ..., 'expansion': ..., 'k': ...}
-    # - Online: {'encoder.weight': ..., 'encoder.bias': ..., 'decoder.weight': ..., 'decoder.bias': ...}
-    if 'model_state_dict' in checkpoint:
-        # Offline format
-        input_dim = checkpoint['input_dim']
-        expansion = checkpoint['expansion']
-        k = checkpoint['k']
-        state_dict = checkpoint['model_state_dict']
+    # Load feature-gene matrix (REQUIRED)
+    feature_gene_matrix_path = os.path.join(MATRIX_DIR, 'feature_gene_matrix.npy')
+    if not os.path.exists(feature_gene_matrix_path):
+        print(f"\nERROR: Feature-gene matrix not found at {feature_gene_matrix_path}")
+        print("\nPlease run compute_feature_matrices.py first to generate the matrices.")
+        return
+
+    print(f"Loading feature-gene matrix from {MATRIX_DIR}...")
+    feature_gene_matrix = np.load(feature_gene_matrix_path)
+    print(f"  Shape: {feature_gene_matrix.shape}")
+
+    # Load PR values (REQUIRED for adaptive selection)
+    pr_path = os.path.join(MATRIX_DIR, 'feature_participation_ratios.npy')
+    if USE_ADAPTIVE_SELECTION:
+        if not os.path.exists(pr_path):
+            print(f"\nERROR: PR values not found at {pr_path}")
+            print("\nPlease run compute_feature_matrices.py first (it computes PR values automatically)")
+            return
+        pr_values = np.load(pr_path)
+        print(f"  PR values loaded. Adaptive selection: factor={PR_SCALE_FACTOR}, bounds=[{MIN_GENES_PER_FEATURE},{MAX_GENES_PER_FEATURE}]")
     else:
-        # Online format - infer parameters from weight shapes
-        # decoder.weight shape: [output_dim, latent_dim] = [640, 5120]
-        # encoder.weight shape: [latent_dim, input_dim] = [5120, 640]
-        input_dim = checkpoint['decoder.weight'].shape[0]  # 640
-        latent_dim = checkpoint['decoder.weight'].shape[1]  # 5120
-        expansion = latent_dim // input_dim
-        k = args.k  # Use from CLI args
-        state_dict = checkpoint
-
-    sae = TopKSAE(input_dim=input_dim, expansion=expansion, k=k).to(DEVICE)
-    sae.load_state_dict(state_dict)
-    sae.eval()
-    print(f"Loaded SAE: {input_dim} -> {sae.latent_dim} (K={k})")
+        pr_values = None
 
     # Load gene names
     print("\nLoading gene names...")
-    gene_names = load_gene_names(ACTIVATIONS_FILE, RAW_DATA_FILE)
-    print(f"Loaded {len(gene_names)} gene names")
+    gene_names = load_gene_names(RAW_DATA_FILE)
+    print(f"  Loaded {len(gene_names)} gene names")
+
+    # Get expressed genes only
+    print("\nFiltering to expressed genes only...")
+    _, expressed_names, expressed_mask = get_expressed_genes(
+        RAW_DATA_FILE, min_mean_expr=0.01, min_pct_cells=0.5
+    )
+    print(f"  Filtered from {len(gene_names)} to {len(expressed_names)} expressed genes")
 
     # Load cell type labels
     print("\nLoading cell type labels...")
-    processed_path = os.path.join(script_dir, PROCESSED_DATA_FILE)
-    adata_processed = ad.read_h5ad(processed_path)
 
-    # Get cell names from HDF5
-    with h5py.File(ACTIVATIONS_FILE, 'r') as f:
-        cell_names = [name.decode() for name in f['cell_names'][:]]
+    # First try to get cell types from raw data
+    raw_path = RAW_DATA_FILE
+    if not os.path.isabs(raw_path):
+        raw_path = os.path.join(script_dir, raw_path)
+    adata_raw = ad.read_h5ad(raw_path)
 
-    # Align cell types with activation order
-    cell_types = adata_processed.obs.loc[cell_names, 'louvain']
-    print(f"Cell types: {cell_types.value_counts().to_dict()}")
+    if CELLTYPE_COL in adata_raw.obs.columns:
+        print(f"  Found '{CELLTYPE_COL}' column in raw data")
+        cell_types = adata_raw.obs[CELLTYPE_COL]
+    else:
+        # Fall back to processed data
+        if PROCESSED_DATA_FILE is None:
+            print(f"\nERROR: Raw data does not have '{CELLTYPE_COL}' column and --processed-data was not provided.")
+            print(f"  Either add cell type labels to raw data or provide --processed-data")
+            return
+        print(f"  '{CELLTYPE_COL}' not in raw data, loading from processed data...")
+        processed_path = PROCESSED_DATA_FILE
+        if not os.path.isabs(processed_path):
+            processed_path = os.path.join(script_dir, processed_path)
+        adata_processed = ad.read_h5ad(processed_path)
+        if CELLTYPE_COL not in adata_processed.obs.columns:
+            print(f"\nERROR: '{CELLTYPE_COL}' column not found in processed data either.")
+            print(f"  Available columns: {list(adata_processed.obs.columns)}")
+            return
+        cell_types = adata_processed.obs[CELLTYPE_COL]
+
+    print(f"  Cell types: {cell_types.value_counts().to_dict()}")
 
     # ==================== Feature-Gene Analysis ====================
     print("\n" + "="*60)
     print("Feature-Gene Analysis")
     print("="*60)
 
-    # Load or compute feature_gene_matrix
-    feature_gene_matrix_path = os.path.join(INPUT_DIR, 'feature_gene_matrix.npy')
-    if os.path.exists(feature_gene_matrix_path):
-        print(f"Loading pre-computed feature-gene matrix from {INPUT_DIR}...")
-        feature_gene_matrix = np.load(feature_gene_matrix_path)
-        print(f"Loaded feature-gene matrix shape: {feature_gene_matrix.shape}")
-    else:
-        print("Computing feature-gene matrix (this may take a while)...")
-        feature_gene_matrix = compute_feature_gene_activations(sae, ACTIVATIONS_FILE)
-        print(f"Computed feature-gene matrix shape: {feature_gene_matrix.shape}")
-        print(f"Saving to {feature_gene_matrix_path}...")
-        np.save(feature_gene_matrix_path, feature_gene_matrix)
-
     # Find most active features (highest total activation)
     feature_activity = feature_gene_matrix.sum(axis=1)
     top_features = np.argsort(feature_activity)[::-1][:TOP_FEATURES_TO_ANALYZE]
 
-    print(f"\nAnalyzing top {TOP_FEATURES_TO_ANALYZE} most active features...")
-
-    # Get expressed genes only (filter out zero-expressed genes like olfactory receptors)
-    print("\nFiltering to expressed genes only...")
-    _, expressed_names, expressed_mask = get_expressed_genes(
-        RAW_DATA_FILE, min_mean_expr=0.01, min_pct_cells=0.5
-    )
-    print(f"Filtered from {len(gene_names)} to {len(expressed_names)} expressed genes")
-
-    # Load PR values if using adaptive selection
-    pr_values = None
-    if USE_ADAPTIVE_SELECTION:
-        pr_path = os.path.join(INPUT_DIR, 'feature_participation_ratios.npy')
-        if not os.path.exists(pr_path):
-            print(f"\nERROR: PR values not found at {pr_path}")
-            print("\nPlease run analyze_feature_scale.py first to generate the participation ratio values:")
-            online_flag = "--online" if args.online else ""
-            print(f"  python scripts/analyze_feature_scale.py --layer {args.layer} --expansion {args.expansion} {online_flag}")
-            return
-        pr_values = np.load(pr_path)
-        print(f"Loaded PR values. Using adaptive selection (factor={PR_SCALE_FACTOR}, bounds=[{MIN_GENES_PER_FEATURE},{MAX_GENES_PER_FEATURE}])")
+    print(f"Analyzing top {TOP_FEATURES_TO_ANALYZE} most active features...")
 
     # ==================== PARALLELIZED GO ENRICHMENT ====================
     print(f"\nRunning GO enrichment with {args.workers} parallel workers...")
@@ -497,52 +429,31 @@ def main():
                     finally:
                         pbar.update(1)
 
-    # Copy feature-gene matrix to OUTPUT_DIR if it doesn't exist there
-    output_matrix_path = os.path.join(OUTPUT_DIR, 'feature_gene_matrix.npy')
-    if not os.path.exists(output_matrix_path):
-        print(f"\nCopying feature-gene matrix to {OUTPUT_DIR}")
-        np.save(output_matrix_path, feature_gene_matrix)
-
-    # Copy PR values to OUTPUT_DIR if it doesn't exist there
-    if USE_ADAPTIVE_SELECTION:
-        output_pr_path = os.path.join(OUTPUT_DIR, 'feature_participation_ratios.npy')
-        if not os.path.exists(output_pr_path):
-            print(f"Copying PR values to {OUTPUT_DIR}")
-            np.save(output_pr_path, pr_values)
-
     # ==================== Cell-Type Analysis ====================
     print("\n" + "="*60)
     print("Cell-Type Analysis")
     print("="*60)
 
-    # Try to load cell_feature_matrix from INPUT_DIR or OUTPUT_DIR
-    cell_feature_matrix = None
-    correlations_df = None
+    # Load cell-feature matrix (REQUIRED)
+    cell_feature_matrix_path = os.path.join(MATRIX_DIR, 'cell_feature_matrix.npy')
+    if not os.path.exists(cell_feature_matrix_path):
+        print(f"\nERROR: Cell-feature matrix not found at {cell_feature_matrix_path}")
+        print("\nPlease run compute_feature_matrices.py first")
+        return
 
-    for dir_path in [OUTPUT_DIR, INPUT_DIR]:
-        try:
-            cell_feature_matrix = np.load(os.path.join(dir_path, 'cell_feature_matrix.npy'))
-            correlations_df = pd.read_csv(
-                os.path.join(dir_path, 'feature_celltype_correlations.csv'),
-                index_col=0
-            )
-            print(f"Loaded cell-feature matrix and correlations from {dir_path}")
-            break
-        except:
-            continue
+    cell_feature_matrix = np.load(cell_feature_matrix_path)
+    print(f"Loaded cell-feature matrix: {cell_feature_matrix.shape}")
 
-    if cell_feature_matrix is None:
+    # Load or compute correlations
+    correlations_path = os.path.join(MATRIX_DIR, 'feature_celltype_correlations.csv')
+    if os.path.exists(correlations_path):
+        correlations_df = pd.read_csv(correlations_path, index_col=0)
+        print(f"Loaded pre-computed correlations from {correlations_path}")
+    else:
         print("Computing cell-type correlations...")
-        cell_feature_matrix = compute_cell_feature_activations(sae, ACTIVATIONS_FILE, expressed_mask)
-        print(f"Cell-feature matrix shape: {cell_feature_matrix.shape}")
-
-        # Compute correlations
         correlations_df = analyze_cell_type_correlations(cell_feature_matrix, cell_types)
-
-        # Save to OUTPUT_DIR
-        print(f"Saving cell-feature matrix to {OUTPUT_DIR}")
-        np.save(os.path.join(OUTPUT_DIR, 'cell_feature_matrix.npy'), cell_feature_matrix)
-        correlations_df.to_csv(os.path.join(OUTPUT_DIR, 'feature_celltype_correlations.csv'))
+        correlations_df.to_csv(correlations_path)
+        print(f"Saved correlations to {correlations_path}")
 
     # Find features most correlated with each cell type
     print("\nTop features per cell type:")
