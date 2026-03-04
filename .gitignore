@@ -1,9 +1,18 @@
 /.claude
 /data
-/papers
-/ModelGenerator
 /scBERT
 /scGPT
+/ModelGenerator
+/papers
+/notebooks
+/plots
+/reports
+/summaries
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# Root-level non-repo files
+/project_description.md
+/steering_experiments_ideas.md
+/GEMINI.md
