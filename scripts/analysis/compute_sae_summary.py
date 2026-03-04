@@ -81,7 +81,7 @@ def main():
 
     # 2. Load GO DAG + compute ICs (needed for max ICs)
     need_ics = args.force or not exists(summary_dir, 'max_ics.npy')
-    need_terms = args.force or not exists(summary_dir, 'term_counts.json') or not exists(summary_dir, 'exclusive_counts.npy')
+    need_terms = args.force or not exists(summary_dir, 'term_counts.json') or not exists(summary_dir, 'exclusive_counts.npy') or not exists(summary_dir, 'n_terms_per_feature.npy')
     need_go_ochiai = args.force or not exists(summary_dir, 'go_ochiai.npy')
     need_gene_ochiai = args.force or not exists(summary_dir, 'gene_ochiai.npy')
 
@@ -123,7 +123,9 @@ def main():
             sum(1 for t in go_ids[f] if term_freq[t] == 1)
             for f in enriched_features
         ])
+        n_terms_per_feature = np.array([len(go_ids[f]) for f in enriched_features])
         np.save(os.path.join(summary_dir, 'exclusive_counts.npy'), exclusive_counts)
+        np.save(os.path.join(summary_dir, 'n_terms_per_feature.npy'), n_terms_per_feature)
         print(f"  Features with >=1 exclusive term: {(exclusive_counts > 0).sum()}/{n_enriched}")
     else:
         print("\n=== Term frequencies + exclusive counts: already computed, skipping ===")

@@ -44,6 +44,7 @@ def load_summary(summary_dir):
     data['max_ics'] = np.load(os.path.join(summary_dir, 'max_ics.npy'))
     data['feature_indices'] = np.load(os.path.join(summary_dir, 'feature_indices.npy'))
     data['exclusive_counts'] = np.load(os.path.join(summary_dir, 'exclusive_counts.npy'))
+    data['n_terms_per_feature'] = np.load(os.path.join(summary_dir, 'n_terms_per_feature.npy'))
     data['go_ochiai'] = np.load(os.path.join(summary_dir, 'go_ochiai.npy'))
     data['gene_ochiai'] = np.load(os.path.join(summary_dir, 'gene_ochiai.npy'))
     with open(os.path.join(summary_dir, 'term_counts.json')) as f:
@@ -138,16 +139,17 @@ def main():
                 args.labels, colors,
                 'Max IC per Feature', 'Information Content')
 
-    # 2. Term frequency violin
+    # 2. Term frequency violin (normalized by n_enriched)
     freq_data = []
     gini_values = []
     for s in summaries:
         freqs = np.array(list(s['term_counts'].values()))
-        freq_data.append(freqs)
+        n_enriched = s['metadata']['n_features_enriched']
+        freq_data.append(freqs / n_enriched)
         gini_values.append(gini_coefficient(freqs))
     legend_labels = [f"{l} (Gini={g:.3f})" for l, g in zip(args.labels, gini_values)]
     violin_plot(axes[1], freq_data, args.labels, colors,
-                'GO Term Frequency', 'Features per term')
+                'GO Term Frequency', 'Fraction of features per term')
     handles = [plt.Rectangle((0, 0), 1, 1, fc=c, ec='black', lw=0.8)
                for c in colors[:len(args.labels)]]
     axes[1].legend(handles, legend_labels, fontsize=8, loc='upper right')
@@ -159,11 +161,15 @@ def main():
                 'Pairwise GO Ochiai', 'Ochiai coefficient',
                 filter_zeros=True)
 
-    # 4. Exclusive GO terms per feature violin
-    violin_plot(axes[3],
-                [s['exclusive_counts'] for s in summaries],
-                args.labels, colors,
-                'Exclusive GO Terms per Feature', 'Exclusive GO term count',
+    # 4. Exclusive GO terms per feature violin (normalized by total terms per feature)
+    excl_frac_data = []
+    for s in summaries:
+        n_terms = s['n_terms_per_feature']
+        excl = s['exclusive_counts']
+        frac = np.where(n_terms > 0, excl / n_terms, 0.0)
+        excl_frac_data.append(frac)
+    violin_plot(axes[3], excl_frac_data, args.labels, colors,
+                'Exclusive GO Terms per Feature', 'Fraction exclusive',
                 filter_zeros=True)
 
     # 5. Gene Ochiai violin
