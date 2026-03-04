@@ -16,8 +16,8 @@ from collections import defaultdict
 from scipy.spatial.distance import squareform
 
 # Import utility functions
-sys.path.insert(0, os.path.dirname(__file__))
-from sae_analysis_utils import load_go_enrichment
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils.data_utils import load_go_enrichment
 
 
 def parse_args():
@@ -35,12 +35,14 @@ def parse_args():
     parser.add_argument('--metric', type=str, default='overlap_sqrt',
                         choices=['overlap', 'overlap_sqrt'],
                         help='Overlap metric to use (default: overlap_sqrt)')
+    parser.add_argument('--interp_dir', type=str)
+    parser.add_argument('--plot_suffix', type=str, default='')
     return parser.parse_args()
 
 
-def load_similarity_data(layer, expansion, k, metric):
+def load_similarity_data(layer, expansion, k, metric, plot_suffix):
     """Load similarity matrix and feature indices."""
-    OUTPUT_DIR = f"plots/sae/layer_{layer}/coactivation"
+    OUTPUT_DIR = f"plots/sae/layer_{layer}{plot_suffix}/coactivation"
 
     corr_file = f"{OUTPUT_DIR}/feature_gene_{metric}_filtered_correlations.npy"
     indices_file = f"{OUTPUT_DIR}/feature_gene_{metric}_filtered_indices.npy"
@@ -278,6 +280,86 @@ def plot_go_overlap_distribution(go_overlaps, output_dir, metric, threshold):
     plt.close()
 
 
+def plot_within_vs_all_go_overlap(ccs, go_overlap_matrix, feature_to_idx, all_go_overlaps_flat, output_dir, metric, threshold):
+    """Plot boxplot of mean within-component GO overlap with all-pairs mean as baseline.
+
+    Args:
+        ccs: List of connected components (each a set of feature IDs)
+        go_overlap_matrix: Square matrix of GO overlap coefficients
+        feature_to_idx: Dict mapping feature_id to matrix index
+        all_go_overlaps_flat: Flat array of all pairwise GO overlaps
+        output_dir: Output directory for plots
+        metric: Metric name for filename
+        threshold: Threshold used for graph construction
+    """
+    if go_overlap_matrix is None or feature_to_idx is None:
+        print("GO overlap data not available for within vs all comparison")
+        return
+
+    # Compute mean pairwise GO overlap per component (one value per CC)
+    mean_overlaps_per_cc = []
+    for cc in ccs:
+        cc_list = list(cc)
+        cc_overlaps = []
+        for i, feat_i in enumerate(cc_list):
+            for feat_j in cc_list[i+1:]:
+                if feat_i in feature_to_idx and feat_j in feature_to_idx:
+                    idx_i = feature_to_idx[feat_i]
+                    idx_j = feature_to_idx[feat_j]
+                    overlap = go_overlap_matrix[idx_i, idx_j]
+                    cc_overlaps.append(overlap)
+        if cc_overlaps:
+            mean_overlaps_per_cc.append(np.mean(cc_overlaps))
+
+    if not mean_overlaps_per_cc:
+        print("No within-component pairs found for comparison")
+        return
+
+    mean_overlaps_per_cc = np.array(mean_overlaps_per_cc)
+    all_pairs_mean = np.mean(all_go_overlaps_flat)
+
+    # Create boxplot
+    fig, ax = plt.subplots(figsize=(3, 3.5))
+
+    bp = ax.boxplot([mean_overlaps_per_cc], positions=[1], widths=0.5, patch_artist=True,
+                    showfliers=False)
+
+    bp['boxes'][0].set_facecolor('#E1812C')
+    bp['boxes'][0].set_alpha(0.7)
+    bp['boxes'][0].set_edgecolor('black')
+    bp['boxes'][0].set_linewidth(0.8)
+    for median_line in bp['medians']:
+        median_line.set_color('black')
+        median_line.set_linewidth(1.5)
+    for whisker in bp['whiskers']:
+        whisker.set_linewidth(0.8)
+    for cap in bp['caps']:
+        cap.set_linewidth(0.8)
+
+    # Add horizontal line for all-pairs mean
+    ax.axhline(all_pairs_mean, color='#4878CF', linestyle='--', linewidth=1.2,
+               label=f'All-pairs mean: {all_pairs_mean:.3f}')
+
+    # Add mean marker for within-component
+    within_mean = np.mean(mean_overlaps_per_cc)
+    ax.scatter(1, within_mean, color='firebrick', s=30, zorder=5, marker='D',
+               label=f'Within-CC mean: {within_mean:.3f}')
+
+    ax.set_xticks([1])
+    ax.set_xticklabels(['Within-component\nmean GO overlap'], fontsize=7)
+    ax.set_ylabel('GO Overlap Coefficient', fontsize=9)
+    ax.tick_params(axis='both', labelsize=8)
+    ax.legend(fontsize=6, loc='upper right')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    plt.tight_layout()
+    output_path = f"{output_dir}/cc_within_vs_all_go_overlap_{metric}_t{threshold}.pdf"
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"Saved within vs all GO overlap boxplot to {output_path}")
+    plt.close()
+
+
 def visualize_component(cc, G, go_enrichments, output_dir, cc_id, metric):
     """Visualize a single connected component as a network."""
     subgraph = G.subgraph(cc)
@@ -326,7 +408,8 @@ def main():
     LATENT_DIM = INPUT_DIM * args.expansion
     BASE_DIR = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{args.layer}"
     SAE_DIR = f"{BASE_DIR}/sae_k_{args.k}_{LATENT_DIM}"
-    INTERPRETATION_DIR = f"{SAE_DIR}/interpretations_filter_zero_expressed"
+    INTERPRETATION_DIR = f"{args.interp_dir}"
+    PLOT_SUFFIX = args.plot_suffix
     OUTPUT_DIR = f"plots/sae/layer_{args.layer}/graph_analysis"
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -343,7 +426,7 @@ def main():
     # Load gene overlap similarity data (for graph construction)
     print("Loading gene overlap similarity data...")
     similarities, feature_indices = load_similarity_data(
-        args.layer, args.expansion, args.k, args.metric
+        args.layer, args.expansion, args.k, args.metric, PLOT_SUFFIX
     )
     print(f"Loaded {len(feature_indices)} features, {len(similarities):,} pairwise similarities")
 
@@ -447,6 +530,13 @@ def main():
 
         # Plot GO overlap distribution
         plot_go_overlap_distribution(all_go_overlaps, OUTPUT_DIR, args.metric, args.threshold)
+
+        # Plot within-component vs all-pairs GO overlap boxplot
+        if go_overlaps is not None:
+            plot_within_vs_all_go_overlap(
+                ccs_sorted, go_overlap_matrix, feature_to_idx, go_overlaps,
+                OUTPUT_DIR, args.metric, args.threshold
+            )
 
     else:
         print(f"\nNo connected components with size >= {args.min_cc_size} found.")

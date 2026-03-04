@@ -12,7 +12,8 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
-from steering_utils import TopKSAE
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils import load_sae
 
 BASE_DIR = "/biodata/nyanovsky/datasets/pbmc3k"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -35,14 +36,7 @@ def analyze_layer(layer, expansion=8, k=32):
         return None
 
     # Load SAE
-    checkpoint = torch.load(sae_path, map_location=DEVICE)
-    sae = TopKSAE(
-        input_dim=checkpoint['input_dim'],
-        expansion=checkpoint['expansion'],
-        k=checkpoint['k']
-    ).to(DEVICE)
-    sae.load_state_dict(checkpoint['model_state_dict'])
-    sae.eval()
+    sae = load_sae(sae_dir, device=DEVICE)
 
     # Track feature activation counts
     n_features = sae.latent_dim
@@ -141,7 +135,7 @@ def main():
     for r in all_results:
         layer = r['layer']
         np.savez(
-            os.path.join(output_dir, f'../data/pbmc/dead_features_layer_{layer}.npz'),
+            os.path.join(output_dir, f'../../data/pbmc/dead_features_layer_{layer}.npz'),
             feature_activation_count=r['feature_activation_count'],
             feature_activation_sum=r['feature_activation_sum'],
             n_dead=r['n_dead'],

@@ -18,7 +18,6 @@ import os
 import sys
 import gc
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import anndata as ad
@@ -26,8 +25,9 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-# Add AIDO.Cell to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../ModelGenerator/huggingface/aido.cell'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils import TopKSAE
+# aido_cell imports (path set up by utils/__init__.py)
 from modelgenerator.tasks import Embed
 from aido_cell.utils import align_adata
 
@@ -49,27 +49,6 @@ LEARNING_RATE = 1e-3
 def free_gpu():
     gc.collect()
     torch.cuda.empty_cache()
-
-class TopKSAE(nn.Module):
-    def __init__(self, input_dim=640, expansion=4, k=32):
-        super().__init__()
-        latent_dim = input_dim * expansion
-        self.b_pre = nn.Parameter(torch.zeros(input_dim))  # Learned pre-bias for centering
-        self.encoder = nn.Linear(input_dim, latent_dim, bias=True)
-        self.decoder = nn.Linear(latent_dim, input_dim, bias=True)
-        self.k = k
-
-    def forward(self, x):
-        # Center activations before encoding
-        x_centered = x - self.b_pre
-        # Encode with TopK sparsity
-        latents = self.encoder(x_centered)
-        topk_vals, topk_idx = latents.topk(self.k, dim=-1)
-        sparse_latents = torch.zeros_like(latents)
-        sparse_latents.scatter_(-1, topk_idx, topk_vals)
-        # Decode and add back baseline
-        recon = self.decoder(sparse_latents) + self.b_pre
-        return recon, sparse_latents
 
 def extract_chunk_activations(aido_model, adata, mask, indices, layer_idx, device):
     """Move AIDO to GPU -> Extract -> Move to CPU."""

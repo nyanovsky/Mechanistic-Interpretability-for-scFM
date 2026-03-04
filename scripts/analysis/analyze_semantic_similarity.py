@@ -5,11 +5,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-import sae_analysis_utils as utils
-
-# Re-export constants for compatibility if needed, though usually accessed via utils
-NAMESPACES = utils.NAMESPACES
-NS_ABBREV = utils.NS_ABBREV
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils.data_utils import load_decoder_weights, load_go_enrichment
+from utils.go_utils import (
+    NAMESPACES, NS_ABBREV,
+    load_go_dag_and_associations, separate_by_namespace, compute_max_sim_within_namespace
+)
+from utils.similarity import compute_cosine_similarity, find_nearest_neighbors
 
 
 def parse_args():
@@ -81,30 +84,30 @@ def main():
 
     # Output directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    plot_dir = os.path.join(script_dir, f"../plots/sae/layer_{args.layer}")
+    plot_dir = os.path.join(script_dir, f"../../plots/sae/layer_{args.layer}")
     os.makedirs(plot_dir, exist_ok=True)
 
     # 1. Load GO Data (using refactored utility)
-    godag, term_counts = utils.load_go_dag_and_associations()
+    godag, term_counts = load_go_dag_and_associations()
 
     # 2. Load Features & Annotations
     print("Loading features and annotations...")
-    weights = utils.load_decoder_weights(sae_dir)
-    feature_go_ids = utils.load_go_enrichment(interpretations_dir, mode='ids')
+    weights = load_decoder_weights(sae_dir)
+    feature_go_ids = load_go_enrichment(interpretations_dir, mode='ids')
     annotated_feats = list(feature_go_ids.keys())
     print(f"Annotated features: {len(feature_go_ids)}")
 
     # Pre-compute namespace separation for all features
     print("Separating GO terms by namespace...")
     feature_go_by_ns = {
-        feat_id: utils.separate_by_namespace(go_ids, godag)
+        feat_id: separate_by_namespace(go_ids, godag)
         for feat_id, go_ids in feature_go_ids.items()
     }
 
     # 3. Nearest Neighbors Analysis
     print("Finding nearest neighbors...")
-    sim_matrix = utils.compute_cosine_similarity(weights)
-    nn_indices, nn_similarities = utils.find_nearest_neighbors(sim_matrix, k=args.k_neighbors)
+    sim_matrix = compute_cosine_similarity(weights)
+    nn_indices, nn_similarities = find_nearest_neighbors(sim_matrix, k=args.k_neighbors)
 
     print("Calculating similarity for Nearest Neighbors...")
     lin_scores = []
@@ -120,7 +123,7 @@ def main():
                 neighbor_gos_ns = feature_go_by_ns[neighbor_id]
 
                 # Lin similarity
-                lin_result = utils.compute_max_sim_within_namespace(
+                lin_result = compute_max_sim_within_namespace(
                     feat_gos_ns, neighbor_gos_ns, godag, term_counts, 'lin'
                 )
                 lin_scores.append(lin_result['max_overall'])
@@ -128,7 +131,7 @@ def main():
                     lin_by_ns[ns].append(score)
 
                 # Resnik similarity
-                resnik_result = utils.compute_max_sim_within_namespace(
+                resnik_result = compute_max_sim_within_namespace(
                     feat_gos_ns, neighbor_gos_ns, godag, term_counts, 'resnik'
                 )
                 resnik_scores.append(resnik_result['max_overall'])
@@ -162,13 +165,13 @@ def main():
         gos_b_ns = feature_go_by_ns[feat_j]
 
         # Lin
-        lin_result = utils.compute_max_sim_within_namespace(
+        lin_result = compute_max_sim_within_namespace(
             gos_a_ns, gos_b_ns, godag, term_counts, 'lin'
         )
         rand_lin.append(lin_result['max_overall'])
 
         # Resnik
-        resnik_result = utils.compute_max_sim_within_namespace(
+        resnik_result = compute_max_sim_within_namespace(
             gos_a_ns, gos_b_ns, godag, term_counts, 'resnik'
         )
         rand_resnik.append(resnik_result['max_overall'])

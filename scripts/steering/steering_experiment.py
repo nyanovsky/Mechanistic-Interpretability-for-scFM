@@ -23,20 +23,14 @@ import torch
 import torch.nn as nn
 import anndata as ad
 
-# Add paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ModelGenerator/huggingface/aido.cell'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils import TopKSAE, load_sae
+from utils.steering import SteeringConfig, SteeringExperiment
+from utils.data_utils import load_feature_statistics
 
 from aido_cell.models import CellFoundationConfig
 from aido_cell.models.modeling_cellfoundation import CellFoundationForMaskedLM
 from aido_cell.utils import align_adata
-
-from steering_utils import (
-    SteeringConfig,
-    SteeringExperiment,
-    load_feature_statistics,
-    TopKSAE,
-    load_sae
-)
 
 
 def get_experiment_configs() -> dict:
@@ -44,7 +38,7 @@ def get_experiment_configs() -> dict:
     configs = {
         'viral_defense': SteeringConfig(
             name="Viral Defense State (Component 4)",
-            steering_features=[4367], #[673, 1398, 1790, 2316, 2381, 2593, 3251, 4367, 4827]
+            steering_features=[888], #[673, 1398, 1790, 2316, 2381, 2593, 3251, 4367, 4827]
             alphas=[0, 0.5, 1, 2, 5],
             layer_idx=12,
             reference='max',
@@ -144,6 +138,12 @@ def main():
 
     # Steering parameters
     parser.add_argument(
+        '--features',
+        type=int,
+        nargs='+',
+        help='Feature IDs to steer (overrides experiment defaults)'
+    )
+    parser.add_argument(
         '--reference',
         type=str,
         default='max',
@@ -189,6 +189,8 @@ def main():
         help='Directory to save results'
     )
 
+    parser.add_argument("--interp_dir")
+
     args = parser.parse_args()
 
     # Setup paths
@@ -196,7 +198,7 @@ def main():
         BASE_DIR = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{args.layer}"
         args.sae_dir = f"{BASE_DIR}/sae_k_32_5120"
 
-    INTERPRETATION_DIR = f"{args.sae_dir}/interpretations_filter_zero_expressed"
+    INTERPRETATION_DIR = f"{args.interp_dir}"
 
     # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
@@ -259,11 +261,15 @@ def main():
     configs = get_experiment_configs()
     config = configs[args.experiment]
 
-    # Override layer and alphas if specified
+    # Override config with CLI arguments
     config.layer_idx = args.layer
     config.reference = args.reference
+    if args.features is not None:
+        config.steering_features = args.features
     if args.alphas is not None:
         config.alphas = args.alphas
+
+    print(f"Steering features: {config.steering_features}")
 
     # Initialize experiment
     print("\n5. Initializing experiment...")
@@ -288,9 +294,10 @@ def main():
     )
 
     # Save results
+    features_str = "_".join(map(str, config.steering_features))
     output_file = os.path.join(
         args.output_dir,
-        f"{args.experiment}_layer{args.layer}_results.pt"
+        f"{args.experiment}_layer{args.layer}_feat{features_str}_results.pt"
     )
     print(f"\n7. Saving results to {output_file}...")
     torch.save({

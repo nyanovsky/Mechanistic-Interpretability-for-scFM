@@ -6,6 +6,7 @@ import numpy as np
 
 # CLI arguments
 parser = argparse.ArgumentParser(description='Summarize significant SAE features')
+parser.add_argument('interp_dir', type=str, help='Path to SAE interpretation directory')
 parser.add_argument('--layer', type=int, default=12,
                     help='AIDO.Cell layer (e.g., 9, 12, 15)')
 parser.add_argument('--expansion', type=int, default=8,
@@ -14,13 +15,14 @@ parser.add_argument('--k', type=int, default=32,
                     help='Top-K sparsity')
 parser.add_argument('--online', action='store_true',
                         help='Use online SAE directory (sae_k_{k}_{latent_dim}_online)')
+parser.add_argument('--pooling', type=str, default='mean')
 args = parser.parse_args()
 
 # Build paths from arguments
 INPUT_DIM = 640
 latent_dim = INPUT_DIM * args.expansion
-SAE_SUFFIX = "_online" if args.online else ""
-base_dir = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{args.layer}/sae_k_{args.k}_{latent_dim}{SAE_SUFFIX}/interpretations_filter_zero_expressed"
+
+base_dir = args.interp_dir
 
 print(f"Analyzing: Layer {args.layer}, {args.expansion}x expansion (K={args.k})")
 print(f"Directory: {base_dir}\n")

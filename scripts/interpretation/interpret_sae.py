@@ -29,10 +29,9 @@ except ImportError:
     print("Install with: pip install gseapy")
     HAS_GSEAPY = False
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../ModelGenerator/huggingface/aido.cell'))
-from aido_cell.utils import align_adata
-
-from steering_utils import TopKSAE
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils import load_sae
+from utils.data_utils import load_gene_names, get_expressed_genes
 
 # CLI arguments
 def parse_args():
@@ -58,11 +57,11 @@ SAE_DIR = f"{BASE_DIR}/sae_k_{args.k}_{LATENT_DIM}"
 ACTIVATIONS_FILE = f"{BASE_DIR}/layer{args.layer}_activations.h5"
 SAE_MODEL_FILE = f"{SAE_DIR}/topk_sae.pt"
 OUTPUT_DIR = f"{SAE_DIR}/interpretations_filter_zero_expressed"
-PLOT_DIR = f"../plots/sae/layer_{args.layer}"
+PLOT_DIR = f"../../plots/sae/layer_{args.layer}"
 
 # Static paths (don't depend on layer/SAE config)
-PROCESSED_DATA_FILE = "../data/pbmc/pbmc3k_processed.h5ad"
-RAW_DATA_FILE = "../data/pbmc/pbmc3k_raw.h5ad"
+PROCESSED_DATA_FILE = "../../data/pbmc/pbmc3k_processed.h5ad"
+RAW_DATA_FILE = "../../data/pbmc/pbmc3k_raw.h5ad"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -81,60 +80,6 @@ print(f"Configuration: Layer {args.layer}, {args.expansion}x expansion (K={args.
 print(f"SAE: {SAE_MODEL_FILE}")
 print(f"Output: {OUTPUT_DIR}")
 
-
-def load_gene_names(h5_path, raw_data_path):
-    """Load gene names from original data aligned with activations."""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    raw_path = os.path.join(script_dir, raw_data_path)
-
-    adata_raw = ad.read_h5ad(raw_path)
-    adata_aligned, attention_mask = align_adata(adata_raw)
-
-    # Get gene names for valid genes
-    gene_names = adata_aligned.var_names[attention_mask.astype(bool)]
-    return gene_names.tolist()
-
-
-def get_expressed_genes(raw_data_path, min_mean_expr=0.01, min_pct_cells=0.5):
-    """Return indices and names of genes with sufficient expression.
-
-    Filters out genes with zero/low expression to avoid spurious GO enrichments
-    from genes like olfactory receptors that have embeddings but no expression.
-
-    Args:
-        raw_data_path: Path to raw h5ad file
-        min_mean_expr: Minimum mean expression across cells (default: 0.01)
-        min_pct_cells: Minimum % of cells with nonzero expression (default: 0.5%)
-
-    Returns:
-        expressed_indices: Indices of expressed genes in the full gene list
-        expressed_names: Names of expressed genes
-        expressed_mask: Boolean mask for expressed genes
-    """
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    raw_path = os.path.join(script_dir, raw_data_path)
-
-    adata_raw = ad.read_h5ad(raw_path)
-    adata_aligned, attention_mask = align_adata(adata_raw)
-
-    X = adata_aligned.X
-    if hasattr(X, 'toarray'):
-        X = X.toarray()
-    X_filtered = X[:, attention_mask.astype(bool)]
-
-    gene_names = adata_aligned.var_names[attention_mask.astype(bool)]
-
-    # Compute expression stats per gene
-    mean_expr = X_filtered.mean(axis=0)
-    pct_nonzero = (X_filtered > 0).sum(axis=0) / X_filtered.shape[0] * 100
-
-    # Filter: mean expression > threshold OR expressed in > N% of cells
-    expressed_mask = (mean_expr > min_mean_expr) | (pct_nonzero > min_pct_cells)
-
-    expressed_indices = np.where(expressed_mask)[0]
-    expressed_names = [gene_names[i] for i in expressed_indices]
-
-    return expressed_indices, expressed_names, expressed_mask
 
 
 def compute_feature_gene_activations(sae, h5_path, batch_size=1000):
@@ -316,19 +261,12 @@ def main():
 
     # Load SAE model
     print("\nLoading SAE model...")
-    checkpoint = torch.load(SAE_MODEL_FILE, map_location=DEVICE)
-    sae = TopKSAE(
-        input_dim=checkpoint['input_dim'],
-        expansion=checkpoint['expansion'],
-        k=checkpoint['k']
-    ).to(DEVICE)
-    sae.load_state_dict(checkpoint['model_state_dict'])
-    sae.eval()
-    print(f"Loaded SAE: {checkpoint['input_dim']} -> {sae.latent_dim} (K={checkpoint['k']})")
+    sae = load_sae(os.path.dirname(SAE_MODEL_FILE), device=DEVICE)
+    print(f"Loaded SAE: {sae.input_dim} -> {sae.latent_dim} (K={sae.k})")
 
     # Load gene names
     print("\nLoading gene names...")
-    gene_names = load_gene_names(ACTIVATIONS_FILE, RAW_DATA_FILE)
+    gene_names = load_gene_names(RAW_DATA_FILE)
     print(f"Loaded {len(gene_names)} gene names")
 
     # Load cell type labels

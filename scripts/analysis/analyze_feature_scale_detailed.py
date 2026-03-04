@@ -7,26 +7,21 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import anndata as ad
 import torch
 
-# Add path to import utils for gene name loading
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../ModelGenerator/huggingface/aido.cell'))
-from aido_cell.utils import align_adata
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils.data_utils import load_gene_names
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Detailed analysis of feature scale vs activation magnitude (gene-wise)')
     parser.add_argument('--layer', type=int, default=12, help='Layer to analyze')
     parser.add_argument('--expansion', type=int, default=8, help='Expansion factor')
+    parser.add_argument('--pooling', type=str, default='mean', help='Pooling method used in SAE for fg matrix')
     parser.add_argument('--online', action='store_true',
                         help='Use online SAE directory (sae_k_{k}_{latent_dim}_online)')
+    parser.add_argument('--dataset', default='pbmc3k', help='Dataset name for raw data path')
     return parser.parse_args()
 
-def load_gene_names(raw_data_path):
-    adata_raw = ad.read_h5ad(raw_data_path)
-    adata_aligned, attention_mask = align_adata(adata_raw)
-    gene_names = np.array(adata_aligned.var_names[attention_mask.astype(bool)])
-    return gene_names
 
 def load_decoder_weights(sae_dir):
     """Load decoder weights and return L2 norms per feature."""
@@ -53,9 +48,10 @@ def main():
     
     latent_dim = 640 * args.expansion
     SAE_SUFFIX = "_online" if args.online else ""
-    base_dir = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{args.layer}/sae_k_32_{latent_dim}{SAE_SUFFIX}"
-    interp_dir = f"{base_dir}/interpretations_filter_zero_expressed"
-    raw_data_path = os.path.join(os.path.dirname(__file__), "../data/pbmc/pbmc3k_raw.h5ad")
+    base_dir = f"/biodata/nyanovsky/datasets/{args.dataset}/layer_{args.layer}/sae_k_32_{latent_dim}{SAE_SUFFIX}"
+    pooling = "custom_pooling" if args.pooling == "custom" else "filter_zero_expressed"
+    interp_dir = f"{base_dir}/interpretations_{pooling}"
+    raw_data_path = os.path.join(os.path.dirname(__file__), "../../data/pbmc/pbmc3k_raw.h5ad")
     
     print(f"Analyzing Feature Scale & Peak Gene Activation for Layer {args.layer}...")
 
@@ -151,7 +147,7 @@ def main():
     print(f"Saved analysis to {csv_path}")
     
     # 6. Plotting
-    plot_dir = os.path.join(os.path.dirname(__file__), f"../plots/sae/layer_{args.layer}")
+    plot_dir = os.path.join(os.path.dirname(__file__), f"../../plots/sae/layer_{args.layer}/{pooling}")
     os.makedirs(plot_dir, exist_ok=True)
     
     # Plot 1: PR vs Max Activation

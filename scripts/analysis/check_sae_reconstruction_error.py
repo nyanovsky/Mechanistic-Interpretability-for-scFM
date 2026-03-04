@@ -14,13 +14,11 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-# Add path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ModelGenerator/huggingface/aido.cell'))
+# Import utility functions
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils import TopKSAE, load_sae
+from utils.data_utils import get_expressed_genes_mask
 from aido_cell.utils import align_adata
-
-# Import from local utils
-from sae_analysis_utils import get_expressed_genes_mask
-from steering_utils import TopKSAE, load_sae
 
 
 def main():
@@ -29,8 +27,8 @@ def main():
     BASE_DIR = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{LAYER}"
     SAE_DIR = f"{BASE_DIR}/sae_k_32_5120"
     ACTIVATIONS_FILE = f"{BASE_DIR}/layer{LAYER}_activations.h5"
-    RAW_DATA_FILE = "../data/pbmc/pbmc3k_raw.h5ad"
-    OUTPUT_DIR = "../plots/sae/layer_12/reconstruction_error"
+    RAW_DATA_FILE = "../../data/pbmc/pbmc3k_raw.h5ad"
+    OUTPUT_DIR = "../../plots/sae/layer_12/reconstruction_error"
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     batch_size = 8  # Process 8 cells at a time

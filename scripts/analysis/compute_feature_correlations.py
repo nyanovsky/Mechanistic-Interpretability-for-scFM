@@ -11,15 +11,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Import utility functions
-sys.path.insert(0, os.path.dirname(__file__))
-from sae_analysis_utils import (
-    compute_pairwise_correlations,
-    load_go_enrichment,
-    get_expressed_genes_mask,
-    load_go_dag_and_associations,
-    compute_pairwise_go_similarity,
-    compute_go_term_overlap
-)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils.data_utils import load_go_enrichment, get_expressed_genes_mask
+from utils.go_utils import load_go_dag_and_associations, compute_pairwise_go_similarity, compute_go_term_overlap
+from utils.similarity import compute_pairwise_correlations
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Compute feature pairwise correlations')
@@ -34,7 +29,7 @@ def parse_args():
     parser.add_argument('--metric', type=str, default='spearman',
                         choices=['pearson', 'cosine', 'spearman', 'overlap', 'overlap_sqrt', 'lin', 'go_overlap', 'decoder_cosine'],
                         help='Similarity metric: spearman (default), pearson, cosine (continuous), overlap (gene set-based), overlap_sqrt (sqrt-weighted overlap/Ochiai), lin (GO semantic similarity), go_overlap (GO term overlap coefficient), decoder_cosine (cosine similarity of decoder weights)')
-    parser.add_argument('--pr-scale', type=float, default=0.6,
+    parser.add_argument('--pr-scale', type=float, default=1,
                         help='For overlap metric: scale factor for PR-based top-k selection (default: 0.6)')
     parser.add_argument('--min-genes', type=int, default=10,
                         help='For overlap metric: minimum genes per feature (default: 10)')
@@ -42,6 +37,8 @@ def parse_args():
                         help='For overlap metric: maximum genes per feature (default: 100)')
     parser.add_argument('--sample-pairs', type=int, default=None,
                         help='Randomly sample N pairs instead of computing all (useful for large datasets)')
+    parser.add_argument('--interp_dir', type=str)
+    parser.add_argument('--plot_suffix', type=str, default='')
     return parser.parse_args()
 
 
@@ -54,6 +51,14 @@ def plot_correlation_distribution(correlations, output_path, metric='spearman'):
     n_pairs = len(correlations)
 
     fig, ax = plt.subplots(figsize=(12, 6))
+
+    # For overlap metrics, filter out zero-valued pairs and annotate
+    if metric in ('overlap', 'overlap_sqrt'):
+        n_total = len(correlations)
+        n_zeros = np.sum(correlations == 0)
+        pct_zeros = 100.0 * n_zeros / n_total if n_total > 0 else 0.0
+        correlations = correlations[correlations > 0]
+        n_pairs = len(correlations)
 
     # Plot histogram
     ax.hist(correlations, bins=100, edgecolor='black', alpha=0.7, color='steelblue')
@@ -93,6 +98,12 @@ def plot_correlation_distribution(correlations, output_path, metric='spearman'):
 
     ax.grid(alpha=0.3, linestyle=':', linewidth=0.5)
 
+    # Annotate zero-filtered overlap metrics
+    if metric in ('overlap', 'overlap_sqrt'):
+        ax.text(0.95, 0.95, f'{pct_zeros:.1f}% pairs = 0 (omitted)',
+                transform=ax.transAxes, ha='right', va='top', fontsize=11,
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='wheat', alpha=0.8))
+
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     print(f"Saved plot to {output_path}")
@@ -119,8 +130,9 @@ def main():
     LATENT_DIM = INPUT_DIM * args.expansion
     BASE_DIR = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{args.layer}"
     SAE_DIR = f"{BASE_DIR}/sae_k_{args.k}_{LATENT_DIM}"
-    INTERPRETATION_DIR = f"{SAE_DIR}/interpretations_filter_zero_expressed"
-    OUTPUT_DIR = f"plots/sae/layer_{args.layer}/coactivation"
+    INTERPRETATION_DIR = args.interp_dir
+    PLOT_SUFFIX = args.plot_suffix
+    OUTPUT_DIR = f"plots/sae/layer_{args.layer}{PLOT_SUFFIX}/coactivation"
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -132,7 +144,7 @@ def main():
 
         # Load decoder weights
         print(f"Loading decoder weights from {SAE_DIR}")
-        from sae_analysis_utils import load_decoder_weights
+        from utils.data_utils import load_decoder_weights
         W_dec = load_decoder_weights(SAE_DIR)
         print(f"Decoder weights shape: {W_dec.shape} [n_features, hidden_dim]")
 
@@ -153,7 +165,7 @@ def main():
 
         # Compute pairwise cosine similarity
         print(f"\nComputing pairwise cosine similarity...")
-        from sae_analysis_utils import compute_cosine_similarity
+        from utils.similarity import compute_cosine_similarity
 
         # Compute full similarity matrix
         similarity_matrix = compute_cosine_similarity(W_dec_filtered)
@@ -371,7 +383,7 @@ def main():
     if args.matrix == 'gene':
         print("\n[FILTER 2] Filtering to expressed genes...")
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        RAW_DATA_FILE = os.path.join(script_dir, "../data/pbmc/pbmc3k_raw.h5ad")
+        RAW_DATA_FILE = os.path.join(script_dir, "../../data/pbmc/pbmc3k_raw.h5ad")
         expressed_mask = get_expressed_genes_mask(
             RAW_DATA_FILE,
             min_mean_expr=0.01,

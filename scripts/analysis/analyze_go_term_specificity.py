@@ -16,36 +16,68 @@ from scipy.stats import spearmanr, pearsonr
 from tqdm import tqdm
 
 # Import utility functions
-sys.path.insert(0, os.path.dirname(__file__))
-from sae_analysis_utils import (
-    load_go_enrichment,
-    load_go_dag_and_associations
-)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils.data_utils import load_go_enrichment
+from utils.go_utils import load_go_dag_and_associations, compute_all_go_dag_ics
 
 
-def compute_all_go_dag_ics(godag, term_counts):
-    """Compute information content for ALL GO terms in the DAG.
+def get_reachable_go_ics(interp_dir, all_term_ics):
+    """Get IC values for GO terms that appear in enrichment results (all tested terms).
+
+    Loads enrichment output files with no p-value filter to collect the full set of
+    testable GO terms, then intersects with IC values.
 
     Args:
-        godag: GO DAG object
-        term_counts: TermCounts object
+        interp_dir: Path to interpretation directory with enrichment results
+        all_term_ics: dict {GO_ID: IC_value}
 
     Returns:
-        dict: {GO_ID: IC_value}
+        dict {GO_ID: IC_value} filtered to testable terms
     """
-    print("\nComputing IC for ALL GO terms in DAG...")
+    print("Collecting reachable GO terms from enrichment output files...")
+    all_tested = load_go_enrichment(interp_dir, p_threshold=1.0, mode='ids')
 
-    all_go_ids = list(godag.keys())
-    print(f"Found {len(all_go_ids)} GO terms in DAG")
+    # Union across all features
+    reachable_terms = set()
+    for terms in all_tested.values():
+        reachable_terms |= terms
 
-    term_ics = {}
-    for go_id in tqdm(all_go_ids, desc="Computing IC for all GO terms"):
-        ic = get_info_content(go_id, term_counts)
-        term_ics[go_id] = ic
+    reachable_ics = {t: all_term_ics[t] for t in reachable_terms
+                     if t in all_term_ics and all_term_ics[t] > 0}
 
-    print(f"Computed IC for {len(term_ics)} GO terms")
+    print(f"  Reachable GO terms (IC > 0): {len(reachable_ics)} / {len(all_term_ics)} total")
 
-    return term_ics
+    return reachable_ics
+
+
+def compute_null_max_ic(go_enrichments, ic_pool, n_samples=1000, seed=42):
+    """Compute null distribution of max IC by random sampling.
+
+    For each feature with K enriched terms, sample K terms from the IC pool,
+    take the max, repeat n_samples times, and store the average max IC.
+
+    Args:
+        go_enrichments: dict {feature_id: set(GO_IDs)}
+        ic_pool: dict {GO_ID: IC_value} - the pool to sample from
+        n_samples: Number of random draws per feature (default: 1000)
+        seed: Random seed
+
+    Returns:
+        null_max_ics: dict {feature_id: expected_max_IC_under_null}
+    """
+    rng = np.random.default_rng(seed)
+    pool_ics = np.array(list(ic_pool.values()))
+
+    null_max_ics = {}
+    for feature_id, go_terms in tqdm(go_enrichments.items(), desc="Computing null max IC"):
+        # Use only terms that have a valid IC (matching compute_feature_ic_statistics)
+        k = sum(1 for t in go_terms if t in ic_pool)
+        if k == 0:
+            continue
+        samples = rng.choice(pool_ics, size=(n_samples, k), replace=True)
+        null_max_ics[feature_id] = samples.max(axis=1).mean()
+
+    return null_max_ics
 
 
 def compute_feature_ic_statistics(go_enrichments, all_term_ics):
@@ -136,7 +168,7 @@ def analyze_overlap_pairs(go_enrichments, go_overlap_file, indices_file,
     }
 
 
-def plot_ic_distributions(all_term_ics, analysis_results, feature_mean_ics, feature_median_ics, feature_max_ics, output_dir, overlap_threshold):
+def plot_ic_distributions(all_term_ics, analysis_results, feature_mean_ics, feature_median_ics, feature_max_ics, output_dir, overlap_threshold, null_max_ics=None):
     """Plot IC distributions and comparisons.
 
     Args:
@@ -147,8 +179,9 @@ def plot_ic_distributions(all_term_ics, analysis_results, feature_mean_ics, feat
         feature_max_ics: dict {feature_id: max_IC}
         output_dir: Directory to save plots
         overlap_threshold: Overlap threshold used
+        null_max_ics: dict {feature_id: expected_max_IC_under_null} (optional)
     """
-    shared_ics = analysis_results['shared_term_ics']
+    shared_ics = analysis_results['shared_term_ics'] if analysis_results else np.array([])
 
     # Convert to arrays
     all_ics = np.array(list(all_term_ics.values()))
@@ -226,39 +259,69 @@ def plot_ic_distributions(all_term_ics, analysis_results, feature_mean_ics, feat
     print(f"Saved IC overlap comparison to {output_path}")
     plt.close()
 
-    # === Plot 3: Feature Bias Analysis - Overlay with all terms (mean, median, max) ===
-    fig, ax = plt.subplots(figsize=(12, 7))
+    # === Plot 3: Feature Max IC vs Null Model ===
+    if null_max_ics is not None:
+        # Align: only features present in both
+        common = sorted(set(feature_max_ics.keys()) & set(null_max_ics.keys()))
+        observed_max = np.array([feature_max_ics[f] for f in common])
+        null_max = np.array([null_max_ics[f] for f in common])
 
-    ax.hist(all_ics, bins=50, edgecolor='black', alpha=0.25, color='steelblue',
-            density=True, label='All GO terms (baseline)')
-    ax.hist(feature_mean_ics_arr, bins=50, edgecolor='black', alpha=0.25, color='coral',
-            density=True, label='Feature mean IC')
-    #ax.hist(feature_median_ics_arr, bins=50, edgecolor='black', alpha=0.25, color='green',
-    #        density=True, label='Feature median IC')
-    ax.hist(feature_max_ics_arr, bins=50, edgecolor='black', alpha=0.25, color='green',
-            density=True, label='Feature max IC')
+        fig, ax = plt.subplots(figsize=(10, 6))
 
-    ax.axvline(np.mean(all_ics), color='blue', linestyle='--', linewidth=2, alpha=0.7,
-               label=f'All terms mean: {np.mean(all_ics):.2f}')
-    ax.axvline(np.mean(feature_mean_ics_arr), color='red', linestyle='--', linewidth=2, alpha=0.7,
-               label=f'Feature mean: {np.mean(feature_mean_ics_arr):.2f}')
-    #ax.axvline(np.mean(feature_median_ics_arr), color='darkgreen', linestyle='--', linewidth=2, alpha=0.7,
-    #           label=f'Feature median: {np.mean(feature_median_ics_arr):.2f}')
-    ax.axvline(np.mean(feature_max_ics_arr), color='darkviolet', linestyle='--', linewidth=2, alpha=0.7,
-               label=f'Feature max: {np.mean(feature_max_ics_arr):.2f}')
+        ax.hist(null_max, bins=50, edgecolor='black', alpha=0.35, color='steelblue',
+                density=True, label=f'Null (random sampling)')
+        ax.hist(observed_max, bins=50, edgecolor='black', alpha=0.35, color='darkorange',
+                density=True, label='Observed feature max IC')
 
-    ax.set_xlabel('Information Content', fontsize=12)
-    ax.set_ylabel('Density', fontsize=12)
-    ax.set_title('IC Distribution: All GO Terms vs Feature Mean/Max IC',
-                 fontsize=14, fontweight='bold')
-    ax.legend(fontsize=9, loc='upper right', ncol=2)
-    ax.grid(alpha=0.3, linestyle=':', linewidth=0.5)
+        ax.axvline(np.mean(null_max), color='steelblue', linestyle='--', linewidth=2,
+                   label=f'Null mean: {np.mean(null_max):.2f}')
+        ax.axvline(np.mean(observed_max), color='darkorange', linestyle='--', linewidth=2,
+                   label=f'Observed mean: {np.mean(observed_max):.2f}')
 
-    plt.tight_layout()
-    output_path = os.path.join(output_dir, 'feature_ic_bias_overlay.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    print(f"Saved feature IC bias overlay to {output_path}")
-    plt.close()
+        ax.set_xlabel('Information Content', fontsize=12)
+        ax.set_ylabel('Density', fontsize=12)
+        ax.set_title('Feature Max IC: Observed vs Null Model', fontsize=13)
+        ax.legend(fontsize=11, loc='upper left')
+        ax.grid(alpha=0.3, linestyle=':', linewidth=0.5)
+        ax.tick_params(axis='both', labelsize=12)
+
+        plt.tight_layout()
+        output_path = os.path.join(output_dir, 'feature_ic_bias_overlay.png')
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        print(f"Saved feature IC bias overlay to {output_path}")
+        plt.close()
+
+        # Print comparison stats
+        diff = observed_max - null_max
+        print(f"\n  Null model comparison ({len(common)} features):")
+        print(f"    Observed mean max IC: {np.mean(observed_max):.3f}")
+        print(f"    Null mean max IC:     {np.mean(null_max):.3f}")
+        print(f"    Mean difference:      {np.mean(diff):.3f}")
+        print(f"    % features above null: {100 * (diff > 0).sum() / len(diff):.1f}%")
+    else:
+        # Fallback: old plot without null model
+        fig, ax = plt.subplots(figsize=(10, 6))
+        all_ics_filtered = all_ics[all_ics > 0]
+
+        ax.hist(all_ics_filtered, bins=50, edgecolor='black', alpha=0.35, color='steelblue',
+                density=True, label='All GO terms (IC > 0)')
+        ax.hist(feature_max_ics_arr, bins=50, edgecolor='black', alpha=0.35, color='darkorange',
+                density=True, label='Feature max IC')
+        ax.axvline(np.mean(all_ics_filtered), color='steelblue', linestyle='--', linewidth=2,
+                   label=f'Baseline mean: {np.mean(all_ics_filtered):.2f}')
+
+        ax.set_xlabel('Information Content', fontsize=12)
+        ax.set_ylabel('Density', fontsize=12)
+        ax.set_title('Feature Max IC vs GO Baseline', fontsize=13)
+        ax.legend(fontsize=11, loc='upper left')
+        ax.grid(alpha=0.3, linestyle=':', linewidth=0.5)
+        ax.tick_params(axis='both', labelsize=12)
+
+        plt.tight_layout()
+        output_path = os.path.join(output_dir, 'feature_ic_bias_overlay.png')
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        print(f"Saved feature IC bias overlay to {output_path}")
+        plt.close()
 
 
 def plot_pr_vs_ic(feature_mean_ics, feature_median_ics, feature_max_ics, pr_values, output_dir):
@@ -604,29 +667,27 @@ def main():
     parser.add_argument('--overlap-threshold', type=float, default=0.9,
                         help='Threshold for high GO overlap (default: 0.9)')
 
+    parser.add_argument('--interp_dir', type=str)
+    parser.add_argument('--plot_suffix', type=str, default='')
+    parser.add_argument('--null-samples', type=int, default=0,
+                        help='Number of null samples for max IC comparison (0 = disable, e.g. 1000)')
+
+
     args = parser.parse_args()
 
     # Paths
     INPUT_DIM = 640
     LATENT_DIM = INPUT_DIM * args.expansion
-    BASE_DIR = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{args.layer}"
-    SAE_DIR = f"{BASE_DIR}/sae_k_{args.k}_{LATENT_DIM}"
-    INTERPRETATION_DIR = f"{SAE_DIR}/interpretations_filter_zero_expressed"
-    COACTIVATION_DIR = f"plots/sae/layer_{args.layer}/coactivation"
+    INTERPRETATION_DIR = args.interp_dir
+    COACTIVATION_DIR = f"plots/sae/layer_{args.layer}{args.plot_suffix}/coactivation"
 
-    # GO overlap files
+    # GO overlap files (optional, for high-overlap pair analysis)
     GO_OVERLAP_FILE = os.path.join(COACTIVATION_DIR, "feature_go_overlap_filtered_similarities.npy")
     INDICES_FILE = os.path.join(COACTIVATION_DIR, "feature_go_overlap_filtered_indices.npy")
-
-    # Check files exist
-    if not os.path.exists(GO_OVERLAP_FILE):
-        print(f"ERROR: GO overlap file not found: {GO_OVERLAP_FILE}")
-        print("Run compute_feature_correlations.py with --metric=go_overlap first")
-        return
-
-    if not os.path.exists(INDICES_FILE):
-        print(f"ERROR: Indices file not found: {INDICES_FILE}")
-        return
+    has_overlap_files = os.path.exists(GO_OVERLAP_FILE) and os.path.exists(INDICES_FILE)
+    if not has_overlap_files:
+        print(f"Warning: GO overlap files not found in {COACTIVATION_DIR}")
+        print("Skipping high-overlap pair analysis (plots 1-2). Run compute_feature_correlations.py to enable.")
 
     print("="*70)
     print("GO TERM SPECIFICITY ANALYSIS")
@@ -652,6 +713,20 @@ def main():
     # Compute mean, median, and max IC per feature
     feature_mean_ics, feature_median_ics, feature_max_ics = compute_feature_ic_statistics(go_enrichments, all_term_ics)
 
+    # Compute null model if requested
+    null_max_ics = None
+    if args.null_samples > 0:
+        reachable_ics = get_reachable_go_ics(INTERPRETATION_DIR, all_term_ics)
+        print(f"\nComputing null max IC distribution ({args.null_samples} samples per feature)...")
+        print(f"  Sampling from {len(reachable_ics)} reachable GO terms (not full DAG)")
+        null_max_ics = compute_null_max_ic(go_enrichments, reachable_ics, n_samples=args.null_samples)
+
+        # Save null max ICs
+        null_path = os.path.join(INTERPRETATION_DIR, 'null_max_ics.npy')
+        null_arr = np.array([[f, null_max_ics[f]] for f in sorted(null_max_ics.keys())])
+        np.save(null_path, null_arr)
+        print(f"Saved null max ICs to {null_path}")
+
     # Save IC statistics to CSV
     save_feature_ic_statistics(feature_mean_ics, feature_median_ics, feature_max_ics, INTERPRETATION_DIR)
 
@@ -668,21 +743,22 @@ def main():
         print("Skipping PR vs IC analysis")
         pr_values = None
 
-    # Analyze high-overlap pairs
-    analysis_results = analyze_overlap_pairs(
-        go_enrichments,
-        GO_OVERLAP_FILE,
-        INDICES_FILE,
-        all_term_ics,
-        overlap_threshold=args.overlap_threshold
-    )
-
-    # Print statistics
-    print_statistics(all_term_ics, analysis_results, feature_mean_ics, feature_median_ics, feature_max_ics)
+    # Analyze high-overlap pairs (if overlap files available)
+    analysis_results = None
+    if has_overlap_files:
+        analysis_results = analyze_overlap_pairs(
+            go_enrichments,
+            GO_OVERLAP_FILE,
+            INDICES_FILE,
+            all_term_ics,
+            overlap_threshold=args.overlap_threshold
+        )
+        print_statistics(all_term_ics, analysis_results, feature_mean_ics, feature_median_ics, feature_max_ics)
 
     # Create plots
+    os.makedirs(COACTIVATION_DIR, exist_ok=True)
     print("\nGenerating plots...")
-    plot_ic_distributions(all_term_ics, analysis_results, feature_mean_ics, feature_median_ics, feature_max_ics, COACTIVATION_DIR, args.overlap_threshold)
+    plot_ic_distributions(all_term_ics, analysis_results, feature_mean_ics, feature_median_ics, feature_max_ics, COACTIVATION_DIR, args.overlap_threshold, null_max_ics=null_max_ics)
 
     # Plot PR vs IC if PR values available
     if pr_values is not None:

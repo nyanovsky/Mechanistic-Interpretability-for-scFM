@@ -21,14 +21,23 @@ Mechanistic interpretability for single-cell biology: training SAEs on frozen sc
 ```
 mech_interp_bio/
 ├── ModelGenerator/          # AIDO.Cell (GenBio AI) - primary scFM
-├── scBERT/                  # Tencent scBERT - alternative scFM
-├── scGPT/                   # Reference only (not used - HVG filtering)
+├── scripts/
+│   ├── utils/               # Shared utilities
+│   │   ├── sae_model.py     # TopKSAE class and load_sae()
+│   │   ├── data_utils.py    # Gene/matrix loading, expression filtering
+│   │   ├── go_utils.py      # GO DAG, IC, semantic similarity, term overlap
+│   │   ├── similarity.py    # Cosine, set-based, pairwise correlations, clustering
+│   │   └── steering.py      # ActivationHook, SAESteeringModel, SteeringExperiment
+│   ├── training/            # SAE training scripts
+│   ├── interpretation/      # Feature interpretation & matrix computation
+│   ├── analysis/            # Feature analysis, correlations, graphs
+│   ├── steering/            # Steering experiments & visualization
+│   └── data_prep/           # Activation extraction
 ├── papers/                  # academic papers with info on models
-├── scripts/                 # scripts for straightforward actions: model comparison, inference, etc
 ├── notebooks/               # notebooks for more complex experiments
 ├── reports/                 # .md's of the project
 ├── plots/                   # generated plots from scripts and notebooks
-|   ├── sae/                 # plots of saes from different layers                
+│   └── sae/                 # plots of saes from different layers
 └── data/
     ├── cell_x_gene/         # CELLxGENE bone marrow
     ├── replogle/            # K562 perturbation dataset
@@ -60,7 +69,7 @@ conda activate aido_env
 
 I'm doing smalls POCs of my project on the PBMC3K dataset.
 
-**Stering techniques**:
+**Old Stering techniques**:
 1. Gene expression steering, where I optimized the steering vector so that the expression of a monocyte marker (S100A9) would be high in B-cells while keeping NK markers (GNLY and NKG7) low. Noteobook named `aido_steer.ipynb` at notebooks folder, before and after steer UMAP named `umap_bcell_steering.png` and b-cell distance toward monocytes plot named `bcell_distance_analysis.png` at plots folder.
 2. Contrastive steering, where I optimized the steering vector so that the B-cell embeddings would move closer to the monocyte centroid embedding. Notebook named `aido_contrastive_steer.ipynb` at notebooks folder. UMAP named `contrastive_umap_bcell_steering.png` and distance analysis named `contrastive_distance_analysis.ipynb`.
    
@@ -95,26 +104,29 @@ Lastly, I wanted to see the how was the relationship between a feature's number 
 6. Using a stricter gene overlap coefficient (|A_i ∩ A_j|/sqrt(|A_i|)sqrt(|A_j|), to prevent getting pairs with a coefficient of 1 which have, say 5 genes and 500 genes), and looking at it's distribution `coactivation_gene_overlap_sqrt_filtered.png`, I decided to build a graph connecting features if they had overlap bigger than a certain threshold. I went with 0.2 as a threshold given that values lower than that left the graph with a few huge components and very fragmented. I then analyzed the conected components with more than 3 features and got some coherent conected components, which have a mean feature GO overlap distribution much higher than the all-pairs distribution (`graph_analysis/cc_go_overlap_hist_overlap_Sqrt_t0.2.png` at the `plots/sae/layer_12` folder). I generated a summary of the connected components at `graph_analysis/cc_analysis_overlap_sqrt_t0.2.txt`.
 
 7. Using the connected components found in (6.) and the `layer_12_summary.txt` I designed some steering experiments to check if the resulting features are good for steering. You can see ideas at `steering_experiments_ideas.md`, the experiments setup at `scripts/steering_experiment.py` and steering utils at `scripts/steering_utils.py`.
- 
+Currently, I only ran three experiments but for a single feature each (viral, bcell, and neutrophil). A report on some of the results is in `reports/steering_results.md`.
+We steer features by ammplifying their natural activation across genes. That is, suppose `x` is the residual stream of a given gene at the layer the SAE was trained on, then we compute:
+- `err(x)=SAE(x)-x`
+- `features = SAE.encoder(x)`
+- `features[i] *= alpha`
+- `x_reconstructed = features @ SAE.decoder.weights + err(x)`
+And we continue the forward pass with `x_reconstructed`. That way, we dont steer genes in the direction of a feature they dont activate on (or activate very poorly)
 
-#### Current blockers
+8. Did a CD4 T --> CD8 T steering experiment. Report at `reports/cd4_steering.md`, results at `plots/sae/layer_12/steering_analysis/steering_optimization/distance_scatter.png`
 
-1. Model clamps dynamic range (underescores high expressed genes), and has issues scoring zero-expressed genes, shown at `input_vs_output_expression.png` at plots folder, with specific gene examples in `boxplot_*.png` plots (* being a placeholder for every plot which starts with the preceding string).
-I've tried to fix this by training a new decoder on the final gene embeddings to predict expression using the original pretraining objective (MLM reconstruction), but it didn't change anything (see `decoder_input_vs_output.png`).
-The issue is probably inherent to the model and can't be fixed. I dont worry too much about this.
-2. **IMPORTANT**
-   I think we approached the whole interpretation wrongly when constructing the feature-gene and feature-cell matrices. Doing this correctly is essential for the whole project. My worries are that taking averages over cells (for the feature-gene matrix) and average over genes (for the feature-cell matrix) is diluting the whole signal needed to do interpretation correctly. For example, what if a feature fires poorly over certain housekeeping genes (across all cells), but fire strongly on certain genes in certain cells? Then averaging over cells will tell us that the feature is very active for the housekeeping genes, but not so much for the few genes that fire strongly on a few cells.
-   I think some kind of max pooling is actually needed, and deciding this is essential for then selecting the top activating genes for each feature to interpret it.
+
+9. I feared that the overall feature-gene matrix construction (mean pooling gene activations across cells) was significantly flawed, thinking that averaging might introduce too much noise from low activated cells, so I designed a 95th percentile pooling at `scripts/compute_feature_matrices.py`. It turns out that in raw distribution (over all feature-gene activations), it is true that mean pooling dilutes signal against 95th percentile pooling (see `plots/pooling_strategies_dists.png`). Still, if you look at it feature by feature (max or mean pooling over genes), the gene-level max/mean of the cell-level mean and the gene-level max/mean of the cell-level 95th percentile look almost exactly the same (see `plots/pooling_strategies_feature_pooled_dists.png`).
+As I see it, this means that the scaling factor selection for the steering experiments will remain the same if we use the mean pooled or the 95th percentile pooled feature-gene matrix. The PR distribution is also almos exactly the same (`plots/feature_participation_ratios.png`). These things (especially the max preseervation) make me want to believe that the gene selection strategy would yield really similar top activating gene sets to do GO enrichment and interpret features, but I still have to check this by measuring the per-feature GO overlap between the two strategies and the per feature max/mean IC distribution.
+
+10. Did a negative control with the raw activations from layer 12, achieving half the significantly enriched features (~35% vs ~65%) with also less IC content (`papers/feature_max_ic_violins.pdf`). Still a random SAE negative control achieves similar results to the trained one. I suspect this is due to the regular nature of the pbmc3k data, where co-expression signal is fairly strong and lets a random SAE capture it just by randomly projecting to a bigger space, allowin disentanglement.
+
+11. Tiny paper for POC results is in `papers/steering_pbmc.pdf`
 
 #### TODOs:
 
 **Interpretation**   
-   
-1. Define what approach to take to solve the current blocker #1.
 
-2. Think of further experiments to quantify interpretability of features. This can possibly include testing a random SAE, and/or testing interpretability of activations directly, instead of features.
-   
-3. Think of other types of feature interpretation techiniques beyond GO enrichment. One thing that occured to me was to do negative steering with each feature and quantify how much the cells from each celltype move (on average). This would let us discover "cell identity" specific features (if doing negative steering with one feature is not enough, we could train an MLP that steers multiple features to maximize the distance of the cell types to their original centroid) 
+1. Start with the interpretation for the bone marrow SAE at `/biodata/nyanovsky/datasets/cell_x_gene/bone_marrow/layer_12/sae_k_32_5120/`
 
 ## Browser usage
 - Whenever accessing a browser page and reading its contents, specifically a github one, output a SUCCESS message if successful. Else, output an ERROR message and do not use the failed page.

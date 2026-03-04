@@ -12,8 +12,8 @@ import pandas as pd
 from glob import glob
 
 # Import utility functions
-sys.path.insert(0, os.path.dirname(__file__))
-from sae_analysis_utils import load_go_enrichment, load_gene_names, get_expressed_genes_mask
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils.data_utils import load_go_enrichment, load_gene_names, get_expressed_genes_mask
 
 
 def parse_args():
@@ -259,11 +259,11 @@ def main():
     print("Loading feature-gene matrix and gene names...")
     feature_gene_matrix_full = np.load(f"{INTERPRETATION_DIR}/feature_gene_matrix.npy")
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    gene_names_full = load_gene_names("../data/pbmc/pbmc3k_raw.h5ad")
+    gene_names_full = load_gene_names("../../data/pbmc/pbmc3k_raw.h5ad")
 
     # Filter to expressed genes (matching compute_feature_correlations.py filtering)
     print("Filtering to expressed genes (matching overlap computation)...")
-    RAW_DATA_FILE = os.path.join(script_dir, "../data/pbmc/pbmc3k_raw.h5ad")
+    RAW_DATA_FILE = os.path.join(script_dir, "../../data/pbmc/pbmc3k_raw.h5ad")
     expressed_mask = get_expressed_genes_mask(
         RAW_DATA_FILE,
         min_mean_expr=0.01,

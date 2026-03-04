@@ -15,52 +15,11 @@ import argparse
 import torch
 import h5py
 import numpy as np
-import anndata as ad
 from tqdm import tqdm
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../ModelGenerator/huggingface/aido.cell'))
-from aido_cell.utils import align_adata
-
-from steering_utils import TopKSAE
-
-
-def get_expressed_genes_mask(raw_data_path, min_mean_expr=0.01, min_pct_cells=0.5):
-    """Return boolean mask for genes with sufficient expression.
-
-    Filters out genes with zero/low expression to avoid spurious correlations.
-
-    Args:
-        raw_data_path: Path to raw h5ad file
-        min_mean_expr: Minimum mean expression across cells (default: 0.01)
-        min_pct_cells: Minimum % of cells with nonzero expression (default: 0.5%)
-
-    Returns:
-        expressed_mask: Boolean array of shape (n_genes,)
-        expressed_names: List of expressed gene names
-    """
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    raw_path = os.path.join(script_dir, raw_data_path)
-
-    adata_raw = ad.read_h5ad(raw_path)
-    adata_aligned, attention_mask = align_adata(adata_raw)
-
-    X = adata_aligned.X
-    if hasattr(X, 'toarray'):
-        X = X.toarray()
-    X_filtered = X[:, attention_mask.astype(bool)]
-
-    gene_names = adata_aligned.var_names[attention_mask.astype(bool)]
-
-    # Compute expression stats per gene
-    mean_expr = X_filtered.mean(axis=0)
-    pct_nonzero = (X_filtered > 0).sum(axis=0) / X_filtered.shape[0] * 100
-
-    # Filter: mean expression > threshold OR expressed in > N% of cells
-    expressed_mask = (mean_expr > min_mean_expr) | (pct_nonzero > min_pct_cells)
-
-    expressed_names = [gene_names[i] for i in np.where(expressed_mask)[0]]
-
-    return expressed_mask, expressed_names
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils import TopKSAE, load_sae
+from utils.data_utils import get_expressed_genes
 
 
 def compute_participation_ratio(matrix, axis=1):
@@ -97,6 +56,82 @@ def compute_participation_ratio(matrix, axis=1):
     pr[mask] = 1.0 / ipr[mask]
 
     return pr
+
+
+def compute_neuron_gene_activations_mean(h5_path, device, batch_size=8):
+    """Compute neuron-gene matrix using absolute values of raw activations (no SAE).
+
+    Args:
+        h5_path: Path to HDF5 file
+        device: 'cuda' or 'cpu'
+        batch_size: Number of cells to process in parallel (default: 8)
+
+    Returns: [n_neurons, n_genes] matrix of mean |activation| across cells
+    """
+    print(f"Computing neuron-gene matrix (absolute values, batch_size={batch_size})...")
+
+    with h5py.File(h5_path, 'r') as f:
+        n_cells, n_genes, hidden_dim = f['activations'].shape
+
+        neuron_gene_sum = np.zeros((hidden_dim, n_genes), dtype=np.float32)
+
+        n_batches = (n_cells + batch_size - 1) // batch_size
+
+        for batch_idx in tqdm(range(n_batches), desc="Processing batches"):
+            batch_start = batch_idx * batch_size
+            batch_end = min(batch_start + batch_size, n_cells)
+
+            # Load batch: [batch_size, n_genes, hidden_dim]
+            batch_activations = torch.from_numpy(
+                f['activations'][batch_start:batch_end, :, :].astype(np.float32)
+            ).to(device)
+
+            # Absolute value
+            batch_abs = batch_activations.abs()
+
+            # Transpose to [batch_size, hidden_dim, n_genes] and sum over batch
+            neuron_gene_sum += batch_abs.permute(0, 2, 1).sum(dim=0).cpu().numpy()
+
+        neuron_gene_mean = neuron_gene_sum / n_cells
+
+    return neuron_gene_mean
+
+
+def compute_cell_neuron_activations(h5_path, expressed_mask, device, batch_size=8):
+    """Compute mean absolute neuron activation per cell across expressed genes.
+
+    Args:
+        h5_path: Path to HDF5 file
+        expressed_mask: Boolean mask for expressed genes
+        device: 'cuda' or 'cpu'
+        batch_size: Number of cells to process in parallel (default: 8)
+
+    Returns: [n_cells, n_neurons] matrix of mean |activations|
+    """
+    print(f"Computing cell-neuron activation matrix (batch_size={batch_size})...")
+
+    with h5py.File(h5_path, 'r') as f:
+        n_cells, n_genes, hidden_dim = f['activations'].shape
+
+        cell_neuron_matrix = np.zeros((n_cells, hidden_dim), dtype=np.float32)
+
+        n_batches = (n_cells + batch_size - 1) // batch_size
+
+        for batch_idx in tqdm(range(n_batches), desc="Processing batches"):
+            batch_start = batch_idx * batch_size
+            batch_end = min(batch_start + batch_size, n_cells)
+            current_batch_size = batch_end - batch_start
+
+            batch_activations = torch.from_numpy(
+                f['activations'][batch_start:batch_end, :, :].astype(np.float32)
+            ).to(device)
+
+            # Absolute value, mask to expressed genes, mean over genes
+            batch_abs = batch_activations.abs()
+            for i in range(current_batch_size):
+                cell_neuron_matrix[batch_start + i] = batch_abs[i, expressed_mask].mean(dim=0).cpu().numpy()
+
+    return cell_neuron_matrix
 
 
 def compute_feature_gene_activations_mean(sae, h5_path, device, batch_size=8):
@@ -366,155 +401,161 @@ def main():
                        help='Number of features to process together in custom pooling (default: 100)')
     parser.add_argument('--online', action='store_true',
                        help='Use online SAE directory')
+    parser.add_argument('--sae_dir', type=str, default=None,
+                       help='Override SAE directory path (activations still from --layer)')
+    parser.add_argument('--raw-neurons', action='store_true',
+                       help='Skip SAE, compute neuron-gene matrix from absolute raw activations')
+    parser.add_argument('--b_pre', action='store_true',
+                       help='(Deprecated: auto-detected from checkpoint)')
     args = parser.parse_args()
 
     # Build paths
     INPUT_DIM = 640
     LATENT_DIM = INPUT_DIM * args.expansion
     BASE_DIR = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{args.layer}"
-    SAE_SUFFIX = "_online" if args.online else ""
-    SAE_DIR = f"{BASE_DIR}/sae_k_{args.k}_{LATENT_DIM}{SAE_SUFFIX}"
-
     ACTIVATIONS_FILE = f"{BASE_DIR}/layer{args.layer}_activations.h5"
-    SAE_MODEL_FILE = f"{SAE_DIR}/topk_sae.pt"
-
-    # Output directory with pooling strategy suffix
-    OUTPUT_DIR = f"{SAE_DIR}/interpretations_{args.pooling}_pooling"
-
-    RAW_DATA_FILE = "../data/pbmc/pbmc3k_raw.h5ad"
+    RAW_DATA_FILE = "../../data/pbmc/pbmc3k_raw.h5ad"
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+    if args.raw_neurons:
+        OUTPUT_DIR = f"{BASE_DIR}/raw_neurons"
+    elif args.sae_dir:
+        SAE_DIR = args.sae_dir
+        OUTPUT_DIR = f"{SAE_DIR}/interpretations_{args.pooling}_pooling"
+    else:
+        SAE_SUFFIX = "_online" if args.online else ""
+        SAE_DIR = f"{BASE_DIR}/sae_k_{args.k}_{LATENT_DIM}{SAE_SUFFIX}"
+        OUTPUT_DIR = f"{SAE_DIR}/interpretations_{args.pooling}_pooling"
 
     print("="*70)
     print("Feature Matrix Computation")
     print("="*70)
     print(f"Layer: {args.layer}")
-    print(f"SAE: {args.expansion}x expansion, K={args.k}")
-    print(f"Pooling strategy: {args.pooling}")
+    if args.raw_neurons:
+        print("Mode: RAW NEURONS (absolute values, no SAE)")
+    else:
+        print(f"SAE: {args.expansion}x expansion, K={args.k}")
+        print(f"Pooling strategy: {args.pooling}")
     print(f"Batch size: {args.batch_size}")
-    if args.pooling == 'custom':
-        print(f"  Cell PR scale: {args.cell_pr_scale}")
-        print(f"  Min cells: {args.min_cells}")
-        print(f"  Feature batch size: {args.feature_batch_size}")
     print(f"Device: {DEVICE}")
     print(f"Output: {OUTPUT_DIR}")
     print("="*70)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # Check files exist
     if not os.path.exists(ACTIVATIONS_FILE):
         print(f"ERROR: Activations file not found at {ACTIVATIONS_FILE}")
         return
-    if not os.path.exists(SAE_MODEL_FILE):
-        print(f"ERROR: SAE model not found at {SAE_MODEL_FILE}")
-        return
-
-    # Load SAE model
-    print("\nLoading SAE model...")
-    checkpoint = torch.load(SAE_MODEL_FILE, map_location=DEVICE)
-
-    # Handle both checkpoint formats
-    if 'model_state_dict' in checkpoint:
-        # Offline format
-        input_dim = checkpoint['input_dim']
-        expansion = checkpoint['expansion']
-        k = checkpoint['k']
-        state_dict = checkpoint['model_state_dict']
-    else:
-        # Online format - infer parameters from weight shapes
-        input_dim = checkpoint['decoder.weight'].shape[0]
-        latent_dim = checkpoint['decoder.weight'].shape[1]
-        expansion = latent_dim // input_dim
-        k = args.k
-        state_dict = checkpoint
-
-    sae = TopKSAE(input_dim=input_dim, expansion=expansion, k=k).to(DEVICE)
-    sae.load_state_dict(state_dict)
-    sae.eval()
-    print(f"Loaded SAE: {input_dim} -> {sae.latent_dim} (K={k})")
 
     # Get expressed genes mask
     print("\nLoading gene metadata and filtering to expressed genes...")
-    expressed_mask, expressed_names = get_expressed_genes_mask(
+    _, expressed_names, expressed_mask = get_expressed_genes(
         RAW_DATA_FILE, min_mean_expr=0.01, min_pct_cells=0.5
     )
     print(f"Expressed genes: {expressed_mask.sum()} / {len(expressed_mask)}")
 
-    # ==================== Feature-Gene Matrix ====================
-    print("\n" + "="*70)
-    print("Computing Feature-Gene Matrix")
-    print("="*70)
+    if args.raw_neurons:
+        # ==================== Raw Neuron Mode ====================
+        print("\n" + "="*70)
+        print("Computing Neuron-Gene Matrix (absolute values)")
+        print("="*70)
 
-    if args.pooling == 'mean':
-        feature_gene_matrix = compute_feature_gene_activations_mean(
-            sae, ACTIVATIONS_FILE, DEVICE, batch_size=args.batch_size
+        feature_gene_matrix = compute_neuron_gene_activations_mean(
+            ACTIVATIONS_FILE, DEVICE, batch_size=args.batch_size
         )
 
-        # Compute Gene PR for mean pooling (for consistency with old workflow)
-        print("\nComputing Gene PR (Participation Ratio)...")
+        print("\nComputing PR...")
         gene_pr_values = compute_participation_ratio(feature_gene_matrix, axis=1)
+        print(f"PR statistics:")
+        print(f"  Min: {gene_pr_values.min():.2f}, Max: {gene_pr_values.max():.2f}")
+        print(f"  Mean: {gene_pr_values.mean():.2f}, Median: {np.median(gene_pr_values):.2f}")
 
-        print(f"\nGene PR statistics:")
-        print(f"  Min: {gene_pr_values.min():.2f}")
-        print(f"  Max: {gene_pr_values.max():.2f}")
-        print(f"  Mean: {gene_pr_values.mean():.2f}")
-        print(f"  Median: {np.median(gene_pr_values):.2f}")
-
-        # Save Gene PR
         np.save(os.path.join(OUTPUT_DIR, 'feature_participation_ratios.npy'), gene_pr_values)
-        print(f"Saved Gene PR to {OUTPUT_DIR}/feature_participation_ratios.npy")
+        np.save(os.path.join(OUTPUT_DIR, 'feature_gene_matrix.npy'), feature_gene_matrix)
+        print(f"Saved neuron-gene matrix: {feature_gene_matrix.shape}")
 
-    elif args.pooling == 'custom':
-        feature_gene_matrix, cell_pr_values = compute_feature_gene_activations_custom(
-            sae, ACTIVATIONS_FILE, DEVICE, batch_size=args.batch_size,
-            cell_pr_scale=args.cell_pr_scale,
-            min_cells=args.min_cells,
-            feature_batch_size=args.feature_batch_size
+        print("\n" + "="*70)
+        print("Computing Cell-Neuron Matrix")
+        print("="*70)
+
+        cell_feature_matrix = compute_cell_neuron_activations(
+            ACTIVATIONS_FILE, expressed_mask, DEVICE, batch_size=args.batch_size
+        )
+        np.save(os.path.join(OUTPUT_DIR, 'cell_feature_matrix.npy'), cell_feature_matrix)
+        print(f"Saved cell-neuron matrix: {cell_feature_matrix.shape}")
+
+    else:
+        # ==================== SAE Mode ====================
+        SAE_MODEL_FILE = f"{SAE_DIR}/topk_sae.pt"
+        if not os.path.exists(SAE_MODEL_FILE):
+            print(f"ERROR: SAE model not found at {SAE_MODEL_FILE}")
+            return
+
+        print("\nLoading SAE model...")
+        sae = load_sae(os.path.dirname(SAE_MODEL_FILE), device=DEVICE)
+        print(f"Loaded SAE: {sae.input_dim} -> {sae.latent_dim} (K={sae.k}, b_pre={sae.use_b_pre})")
+
+        print("\n" + "="*70)
+        print("Computing Feature-Gene Matrix")
+        print("="*70)
+
+        if args.pooling == 'mean':
+            feature_gene_matrix = compute_feature_gene_activations_mean(
+                sae, ACTIVATIONS_FILE, DEVICE, batch_size=args.batch_size
+            )
+
+            print("\nComputing Gene PR (Participation Ratio)...")
+            gene_pr_values = compute_participation_ratio(feature_gene_matrix, axis=1)
+
+            print(f"\nGene PR statistics:")
+            print(f"  Min: {gene_pr_values.min():.2f}")
+            print(f"  Max: {gene_pr_values.max():.2f}")
+            print(f"  Mean: {gene_pr_values.mean():.2f}")
+            print(f"  Median: {np.median(gene_pr_values):.2f}")
+
+            np.save(os.path.join(OUTPUT_DIR, 'feature_participation_ratios.npy'), gene_pr_values)
+            print(f"Saved Gene PR to {OUTPUT_DIR}/feature_participation_ratios.npy")
+
+        elif args.pooling == 'custom':
+            feature_gene_matrix, cell_pr_values = compute_feature_gene_activations_custom(
+                sae, ACTIVATIONS_FILE, DEVICE, batch_size=args.batch_size,
+                cell_pr_scale=args.cell_pr_scale,
+                min_cells=args.min_cells,
+                feature_batch_size=args.feature_batch_size
+            )
+
+            np.save(os.path.join(OUTPUT_DIR, 'cell_participation_ratios.npy'), cell_pr_values)
+            print(f"\nSaved Cell PR to {OUTPUT_DIR}/cell_participation_ratios.npy")
+
+            print("\nComputing Gene PR on custom-pooled matrix...")
+            gene_pr_values = compute_participation_ratio(feature_gene_matrix, axis=1)
+            print(f"Gene PR statistics:")
+            print(f"  Min: {gene_pr_values.min():.2f}")
+            print(f"  Max: {gene_pr_values.max():.2f}")
+            print(f"  Mean: {gene_pr_values.mean():.2f}")
+            print(f"  Median: {np.median(gene_pr_values):.2f}")
+
+            np.save(os.path.join(OUTPUT_DIR, 'feature_participation_ratios.npy'), gene_pr_values)
+            print(f"Saved Gene PR to {OUTPUT_DIR}/feature_participation_ratios.npy")
+
+        print(f"\nSaving feature-gene matrix: {feature_gene_matrix.shape}")
+        np.save(os.path.join(OUTPUT_DIR, 'feature_gene_matrix.npy'), feature_gene_matrix)
+
+        print("\n" + "="*70)
+        print("Computing Cell-Feature Matrix")
+        print("="*70)
+
+        cell_feature_matrix = compute_cell_feature_activations(
+            sae, ACTIVATIONS_FILE, expressed_mask, DEVICE, batch_size=args.batch_size
         )
 
-        # Save Cell PR
-        np.save(os.path.join(OUTPUT_DIR, 'cell_participation_ratios.npy'), cell_pr_values)
-        print(f"\nSaved Cell PR to {OUTPUT_DIR}/cell_participation_ratios.npy")
-
-        # Also compute Gene PR on the resulting matrix for comparison
-        print("\nComputing Gene PR on custom-pooled matrix...")
-        gene_pr_values = compute_participation_ratio(feature_gene_matrix, axis=1)
-        print(f"Gene PR statistics:")
-        print(f"  Min: {gene_pr_values.min():.2f}")
-        print(f"  Max: {gene_pr_values.max():.2f}")
-        print(f"  Mean: {gene_pr_values.mean():.2f}")
-        print(f"  Median: {np.median(gene_pr_values):.2f}")
-
-        # Save Gene PR
-        np.save(os.path.join(OUTPUT_DIR, 'feature_participation_ratios.npy'), gene_pr_values)
-        print(f"Saved Gene PR to {OUTPUT_DIR}/feature_participation_ratios.npy")
-
-    # Save feature-gene matrix
-    print(f"\nSaving feature-gene matrix: {feature_gene_matrix.shape}")
-    np.save(os.path.join(OUTPUT_DIR, 'feature_gene_matrix.npy'), feature_gene_matrix)
-
-    # ==================== Cell-Feature Matrix ====================
-    print("\n" + "="*70)
-    print("Computing Cell-Feature Matrix")
-    print("="*70)
-
-    cell_feature_matrix = compute_cell_feature_activations(
-        sae, ACTIVATIONS_FILE, expressed_mask, DEVICE, batch_size=args.batch_size
-    )
-
-    print(f"Saving cell-feature matrix: {cell_feature_matrix.shape}")
-    np.save(os.path.join(OUTPUT_DIR, 'cell_feature_matrix.npy'), cell_feature_matrix)
+        print(f"Saving cell-feature matrix: {cell_feature_matrix.shape}")
+        np.save(os.path.join(OUTPUT_DIR, 'cell_feature_matrix.npy'), cell_feature_matrix)
 
     print("\n" + "="*70)
     print("COMPLETE")
     print("="*70)
     print(f"All matrices saved to {OUTPUT_DIR}")
-    print("\nGenerated files:")
-    print(f"  - feature_gene_matrix.npy: {feature_gene_matrix.shape}")
-    print(f"  - cell_feature_matrix.npy: {cell_feature_matrix.shape}")
-    print(f"  - feature_participation_ratios.npy (Gene PR): {gene_pr_values.shape}")
-    if args.pooling == 'custom':
-        print(f"  - cell_participation_ratios.npy (Cell PR): {cell_pr_values.shape}")
 
 
 if __name__ == "__main__":

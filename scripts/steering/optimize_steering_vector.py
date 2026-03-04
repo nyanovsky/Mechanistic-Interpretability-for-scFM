@@ -24,14 +24,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 
-# Add paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ModelGenerator/huggingface/aido.cell'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils import TopKSAE, load_sae
 
 from aido_cell.models import CellFoundationConfig
 from aido_cell.models.modeling_cellfoundation import CellFoundationForMaskedLM
 from aido_cell.utils import align_adata, preprocess_counts
-
-from steering_utils import TopKSAE, load_sae
 
 
 class OptimizableSteeringModel(nn.Module):

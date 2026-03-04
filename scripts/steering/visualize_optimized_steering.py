@@ -24,14 +24,13 @@ import seaborn as sns
 import scanpy as sc
 from tqdm import tqdm
 
-# Add paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'ModelGenerator/huggingface/aido.cell'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from utils import load_sae
+from utils.steering import SAESteeringModel, ActivationHook
 
 from aido_cell.models import CellFoundationConfig
 from aido_cell.models.modeling_cellfoundation import CellFoundationForMaskedLM
 from aido_cell.utils import align_adata, preprocess_counts
-
-from steering_utils import load_sae, SAESteeringModel, ActivationHook
 
 
 def load_precomputed_embeddings(embeddings_path, processed_path):
@@ -155,12 +154,12 @@ def plot_before_after_umap(
     output_dir
 ):
     """
-    Create before/after UMAP visualization with separate UMAPs.
+    Create before/after UMAP visualization with independent UMAPs.
     """
     unique_types = np.unique(cell_types)
     colors = dict(zip(unique_types, sns.color_palette('tab10', n_colors=len(unique_types))))
 
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(7, 3))
 
     # Pre-steer UMAP
     print("  Computing pre-steer UMAP...")
@@ -172,15 +171,14 @@ def plot_before_after_umap(
 
     for ct in unique_types:
         mask = cell_types == ct
-        alpha = 0.8 if ct in [source_celltype, target_celltype] else 0.4
-        size = 15 if ct in [source_celltype, target_celltype] else 8
         axes[0].scatter(umap_pre[mask, 0], umap_pre[mask, 1],
-                       c=[colors[ct]], label=ct, alpha=alpha, s=size)
+                       c=[colors[ct]], label=ct, alpha=0.4, s=5)
 
-    axes[0].set_title('Pre-steering', fontsize=14)
-    axes[0].set_xlabel('UMAP 1')
-    axes[0].set_ylabel('UMAP 2')
-    axes[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left', frameon=False)
+    axes[0].set_xlabel('UMAP 1', fontsize=8)
+    axes[0].set_ylabel('UMAP 2', fontsize=8)
+    axes[0].tick_params(axis='both', labelsize=7)
+    axes[0].spines['top'].set_visible(False)
+    axes[0].spines['right'].set_visible(False)
 
     # Post-steer UMAP
     print("  Computing post-steer UMAP...")
@@ -192,19 +190,20 @@ def plot_before_after_umap(
 
     for ct in unique_types:
         mask = cell_types == ct
-        alpha = 0.8 if ct in [source_celltype, target_celltype] else 0.4
-        size = 15 if ct in [source_celltype, target_celltype] else 8
         axes[1].scatter(umap_post[mask, 0], umap_post[mask, 1],
-                       c=[colors[ct]], label=ct, alpha=alpha, s=size)
+                       c=[colors[ct]], label=ct, alpha=0.4, s=5)
 
-    axes[1].set_title(f'Post-steering ({source_celltype} steered)', fontsize=14)
-    axes[1].set_xlabel('UMAP 1')
-    axes[1].set_ylabel('UMAP 2')
-    axes[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left', frameon=False)
+    axes[1].set_xlabel('UMAP 1', fontsize=8)
+    axes[1].set_ylabel('UMAP 2', fontsize=8)
+    axes[1].tick_params(axis='both', labelsize=7)
+    axes[1].spines['top'].set_visible(False)
+    axes[1].spines['right'].set_visible(False)
+    axes[1].legend(fontsize=6, markerscale=1.5, frameon=False,
+                   bbox_to_anchor=(1.02, 1), loc='upper left')
 
     plt.tight_layout()
-    output_path = os.path.join(output_dir, 'umap_before_after.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    output_path = os.path.join(output_dir, 'umap_before_after.pdf')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
 
     print(f"  Saved UMAP to {output_path}")
@@ -237,28 +236,31 @@ def plot_distance_scatter(
     n_total = len(pre_distances)
     pct_closer = n_closer / n_total * 100
 
-    # Create scatter plot
-    fig, ax = plt.subplots(figsize=(8, 8))
+    # Create scatter plot with color-coded points
+    closer_mask = post_distances < pre_distances
+    fig, ax = plt.subplots(figsize=(3.5, 3.5))
 
-    ax.scatter(pre_distances, post_distances, alpha=0.5, s=20)
+    ax.scatter(pre_distances[closer_mask], post_distances[closer_mask],
+               alpha=0.4, s=8, color='forestgreen', label=f'Closer ({n_closer})')
+    ax.scatter(pre_distances[~closer_mask], post_distances[~closer_mask],
+               alpha=0.4, s=8, color='firebrick', label=f'Farther ({n_total - n_closer})')
 
     # Add y=x diagonal
     max_dist = max(pre_distances.max(), post_distances.max())
     min_dist = min(pre_distances.min(), post_distances.min())
-    ax.plot([min_dist, max_dist], [min_dist, max_dist], 'r--', linewidth=2, label='y=x (no change)')
+    ax.plot([min_dist, max_dist], [min_dist, max_dist], 'k--', linewidth=1, alpha=0.5)
 
-    ax.set_xlabel(f'Pre-steer distance to {target_celltype} centroid', fontsize=12)
-    ax.set_ylabel(f'Post-steer distance to {target_celltype} centroid', fontsize=12)
-    ax.set_title(f'{source_celltype}: Before vs After Steering\n'
-                f'{n_closer}/{n_total} ({pct_closer:.1f}%) cells moved closer to {target_celltype}', fontsize=13)
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-
+    ax.set_xlabel(f'Pre-steer distance to {target_celltype}', fontsize=8)
+    ax.set_ylabel(f'Post-steer distance to {target_celltype}', fontsize=8)
+    ax.tick_params(axis='both', labelsize=7)
+    ax.legend(fontsize=6, markerscale=1.5)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     ax.set_aspect('equal', adjustable='box')
 
     plt.tight_layout()
-    output_path = os.path.join(output_dir, 'distance_scatter.png')
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    output_path = os.path.join(output_dir, 'distance_scatter.pdf')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
 
     print(f"  Saved distance scatter to {output_path}")
@@ -269,6 +271,95 @@ def plot_distance_scatter(
     print(f"  Mean distance before: {mean_pre:.4f}")
     print(f"  Mean distance after: {mean_post:.4f}")
     print(f"  Change: {mean_post - mean_pre:.4f} ({(mean_post - mean_pre) / mean_pre * 100:.1f}%)")
+
+
+def plot_nearest_target_distance(
+    pre_embeddings,
+    post_embeddings,
+    cell_types,
+    source_celltype,
+    target_celltype,
+    output_dir
+):
+    """
+    Plot distribution of distance to nearest target cell for each source cell,
+    before vs after steering.
+    """
+    from scipy.spatial.distance import cdist
+    from scipy.stats import wilcoxon
+
+    source_mask = cell_types == source_celltype
+    target_mask = cell_types == target_celltype
+
+    # Distances from each source cell to every target cell
+    # Target embeddings don't change (only source cells are steered)
+    target_embeddings = pre_embeddings[target_mask]
+
+    pre_dists = cdist(pre_embeddings[source_mask], target_embeddings, metric='euclidean')
+    pre_nearest = pre_dists.min(axis=1)
+
+    post_dists = cdist(post_embeddings[source_mask], target_embeddings, metric='euclidean')
+    post_nearest = post_dists.min(axis=1)
+
+    # Paired Wilcoxon signed-rank test
+    _, pval = wilcoxon(pre_nearest, post_nearest, alternative='greater')
+
+    # Star notation
+    if pval < 0.001:
+        sig_text = '***'
+    elif pval < 0.01:
+        sig_text = '**'
+    elif pval < 0.05:
+        sig_text = '*'
+    else:
+        sig_text = 'n.s.'
+
+    # Plot side-by-side boxplots
+    fig, ax = plt.subplots(figsize=(2.5, 3.5))
+
+    bp = ax.boxplot(
+        [pre_nearest, post_nearest],
+        labels=['Pre-steering', 'Post-steering'],
+        patch_artist=True,
+        widths=0.5,
+        showfliers=False
+    )
+    bp['boxes'][0].set_facecolor('#4878CF')
+    bp['boxes'][0].set_alpha(0.7)
+    bp['boxes'][1].set_facecolor('#E1812C')
+    bp['boxes'][1].set_alpha(0.7)
+    for box in bp['boxes']:
+        box.set_edgecolor('black')
+        box.set_linewidth(0.8)
+    for median_line in bp['medians']:
+        median_line.set_color('black')
+        median_line.set_linewidth(1.5)
+    for whisker in bp['whiskers']:
+        whisker.set_linewidth(0.8)
+    for cap in bp['caps']:
+        cap.set_linewidth(0.8)
+
+    # Significance bracket — position above the highest whisker
+    whisker_tops = [w.get_ydata().max() for w in bp['whiskers']]
+    y_bracket = max(whisker_tops) * 1.05
+    h = y_bracket * 0.02
+    ax.plot([1, 1, 2, 2], [y_bracket, y_bracket + h, y_bracket + h, y_bracket],
+            color='black', linewidth=0.8)
+    ax.text(1.5, y_bracket + h, sig_text, ha='center', va='bottom', fontsize=9)
+
+    ax.set_ylabel(f'Distance to nearest\n{target_celltype} cell', fontsize=8)
+    ax.tick_params(axis='both', labelsize=7)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    plt.tight_layout()
+    output_path = os.path.join(output_dir, 'nearest_target_distance.pdf')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    print(f"  Saved nearest target distance plot to {output_path}")
+    print(f"  Mean distance to nearest {target_celltype}: {pre_nearest.mean():.3f} (pre) -> {post_nearest.mean():.3f} (post)")
+    print(f"  Wilcoxon signed-rank test: p = {pval:.2e}")
 
 
 def main():
@@ -380,6 +471,15 @@ def main():
     )
 
     plot_distance_scatter(
+        pre_embeddings,
+        post_embeddings,
+        cell_types,
+        args.source_celltype,
+        args.target_celltype,
+        args.output_dir
+    )
+
+    plot_nearest_target_distance(
         pre_embeddings,
         post_embeddings,
         cell_types,

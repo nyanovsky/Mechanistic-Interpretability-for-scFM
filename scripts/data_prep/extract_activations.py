@@ -13,15 +13,15 @@ from tqdm import tqdm
 
 import argparse
 
-# Add AIDO.Cell to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../ModelGenerator/huggingface/aido.cell'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import utils  # noqa: F401 – triggers AIDO.Cell path setup
 
 from modelgenerator.tasks import Embed
 from aido_cell.utils import align_adata
 
 # Configuration
-RAW_DATA_FILE = "../data/pbmc/pbmc3k_raw.h5ad"
-PROCESSED_DATA_FILE = "../data/pbmc/pbmc3k_processed.h5ad"
+RAW_DATA_FILE = "../../data/pbmc/pbmc3k_raw.h5ad"
+PROCESSED_DATA_FILE = "../../data/pbmc/pbmc3k_processed.h5ad"
 BASE_OUTPUT_DIR = "/biodata/nyanovsky/datasets/pbmc3k"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
