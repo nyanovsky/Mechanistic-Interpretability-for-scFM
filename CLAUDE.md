@@ -21,7 +21,9 @@ mech_interp_bio/
 ├── reports/                 # Lab journal (git ignored, see below)
 ├── notebooks/               # Notebooks (git ignored)
 ├── plots/                   # Generated plots (git ignored)
+├── summaries/               # GO annotation summaries for different SAEs (git ignored)   
 └── data/                    # Datasets (git ignored)
+
 ```
 
 ## How to Run

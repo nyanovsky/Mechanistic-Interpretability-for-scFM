@@ -1,31 +1,28 @@
 # Mechanistic Interpretability for Single-Cell Biology
 
-Training Sparse Autoencoders (SAEs) on frozen single-cell Foundation Model (scFM) activations to extract interpretable biological features. These features enable interpretable perturbation prediction by steering the scFM's internal representations using learned feature directions.
+Training Sparse Autoencoders (SAEs) on frozen single-cell Foundation Model (scFM) activations to extract interpretable biological features. These features enable interpretable in-silico experiments by steering the scFM's internal representations using learned feature directions against a desired objective.
 
-**Paper:** [Sparse Autoencoders Reveal Interpretable Biological Features in Single-Cell Foundation Models](https://openreview.net/forum?id=6B3zp01ubG)
+**Paper (MLGenX, Gen2 workshops at ICLR 26'):** [Dissecting and Steering Cell Identity in a Single-Cell Foundation Model Using Sparse Autoencoders](https://openreview.net/forum?id=6B3zp01ubG)
 
 ## Pipeline
 
 1. **Train SAE** on scFM layer activations (CELLxGENE bone marrow, ~900k cells)
 2. **Interpret features** via Gene Ontology enrichment on top-activating genes per feature
 3. **Analyze features** — coactivation, feature graphs, scale analysis
-4. **Steer** — train MLP adapter to predict steering vectors for interpretable perturbation prediction:
+4. **Steer** — train adapters to predict which features to steer to achieve an objective in output expression space:
 
-$$x^i = x^i + \text{MLP}(x^i, \text{pert\_id}) \cdot W_{dec}$$
 
 ## Repository Structure
 
 ```
-mech_interp_bio/
-├── scripts/
-│   ├── utils/               # Shared utilities (SAE model, data, GO, similarity, steering)
-│   ├── training/            # SAE training scripts
-│   ├── interpretation/      # Feature interpretation & matrix computation
-│   ├── analysis/            # Feature analysis, correlations, graphs
-│   ├── steering/            # Steering experiments & visualization
-│   └── data_prep/           # Activation extraction from scFM
-├── reports/                 # Experiment reports and project journal
-└── data/                    # Datasets (not tracked)
+scripts/
+├── utils/               # Shared utilities (SAE model, data, GO, similarity, steering)
+├── training/            # SAE training scripts
+├── interpretation/      # Feature interpretation & matrix computation
+├── analysis/            # Feature analysis, correlations, graphs
+├── steering/            # Steering experiments & visualization
+└── data_prep/           # Activation extraction from scFM
+
 ```
 
 ## Requirements
@@ -43,6 +40,20 @@ git clone https://github.com/genbio-ai/ModelGenerator.git
 ```bash
 conda activate aido_env
 pip install -r requirements.txt
+```
+
+### PBMC3K Dataset
+
+The POC experiments use the PBMC3K dataset. Download via scanpy:
+
+```python
+import scanpy as sc
+
+adata = sc.datasets.pbmc3k()          # raw counts
+adata.write("data/pbmc/pbmc3k_raw.h5ad")
+
+adata = sc.datasets.pbmc3k_processed() # processed (normalized, annotated. We only use this to annotate cell-types in the raw data.)
+adata.write("data/pbmc/pbmc3k_processed.h5ad")
 ```
 
 ### Gene Ontology Data
