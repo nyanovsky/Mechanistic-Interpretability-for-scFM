@@ -38,17 +38,9 @@ from scipy.stats import spearmanr
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 
-# Try to import gseapy for GO enrichment
-try:
-    import gseapy as gp
-    HAS_GSEAPY = True
-except ImportError:
-    print("WARNING: gseapy not installed. GO enrichment will be skipped.")
-    print("Install with: pip install gseapy")
-    HAS_GSEAPY = False
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils.data_utils import get_expressed_genes
+from utils.go_utils import run_go_enrichment
 
 # CLI arguments
 def parse_args():
@@ -179,38 +171,6 @@ def select_genes_adaptive(feature_activations, pr, use_threshold=False,
     return selected
 
 
-def run_go_enrichment(gene_list, feature_idx, output_dir, background=None):
-    """Run GO enrichment on a gene list using gseapy.
-
-    Uses gp.enrich() (offline hypergeometric test) instead of gp.enrichr() (online API)
-    so that a custom background gene list is respected. This prevents inflated significance
-    when the gene universe is restricted to expressed genes.
-    """
-    if not HAS_GSEAPY:
-        return None
-
-    gene_sets = ['GO_Biological_Process_2021', 'GO_Molecular_Function_2021', 'GO_Cellular_Component_2021']
-    all_results = []
-
-    for gs in gene_sets:
-        try:
-            enr = gp.enrich(
-                gene_list=gene_list,
-                gene_sets=gs,
-                background=background,
-                outdir=os.path.join(output_dir, f'feature_{feature_idx}_enrichr'),
-                cutoff=0.05
-            )
-            if enr.results is not None and not enr.results.empty:
-                all_results.append(enr.results)
-        except Exception as e:
-            # Silent in parallel mode to avoid cluttering output
-            continue
-
-    if not all_results:
-        return None
-
-    return pd.concat(all_results, ignore_index=True)
 
 
 def analyze_cell_type_correlations(cell_feature_matrix, cell_types):
@@ -253,7 +213,7 @@ def process_feature_go_enrichment(task_data):
     top_genes = [expressed_names[i] for i in top_local_indices]
 
     # Run GO enrichment with expressed genes as background
-    result = run_go_enrichment(top_genes, feat_idx, OUTPUT_DIR, background=background)
+    result = run_go_enrichment(top_genes, OUTPUT_DIR, background=background, identifier=f"feature_{feat_idx}", verbose=False)
 
     return feat_idx, result
 
@@ -438,7 +398,7 @@ def main():
     print("Creating visualizations...")
     print("="*60)
 
-    plot_dir = os.path.join(script_dir, PLOT_DIR)
+    plot_dir = os.path.abspath(PLOT_DIR)
     os.makedirs(plot_dir, exist_ok=True)
 
     if correlations_df is not None:

@@ -1,12 +1,20 @@
 """Gene Ontology enrichment, semantic similarity, and term overlap utilities."""
 
+import os
 import numpy as np
+import pandas as pd
 from collections import defaultdict
 from tqdm import tqdm
 from goatools.obo_parser import GODag
 from goatools.associations import read_gaf
 from goatools.semantic import TermCounts, get_info_content
 from goatools.semantic import resnik_sim, lin_sim
+
+try:
+    import gseapy as gp
+    HAS_GSEAPY = True
+except ImportError:
+    HAS_GSEAPY = False
 
 
 # =============================================================================
@@ -17,6 +25,72 @@ OBO_PATH = "/biodata/nyanovsky/datasets/GO/go-basic.obo"
 GAF_PATH = "/biodata/nyanovsky/datasets/GO/goa_human.gaf"
 NAMESPACES = ['biological_process', 'cellular_component', 'molecular_function']
 NS_ABBREV = {'biological_process': 'BP', 'cellular_component': 'CC', 'molecular_function': 'MF'}
+
+
+# =============================================================================
+# GO Enrichment Analysis
+# =============================================================================
+
+GO_GENE_SETS = ['GO_Biological_Process_2021', 'GO_Molecular_Function_2021', 'GO_Cellular_Component_2021']
+
+
+def run_go_enrichment(gene_list, output_dir, background=None, identifier=None, verbose=True):
+    """Run GO enrichment on a gene list using gseapy.
+
+    Uses gp.enrich() (offline hypergeometric test) when background is provided,
+    gp.enrichr() (online API) otherwise.
+
+    Args:
+        gene_list: List of gene names
+        output_dir: Directory for output files
+        background: Optional background gene list for offline enrichment
+        identifier: String used in output naming (e.g. 'feature_42', 'Up_Alpha5_vs_Baseline')
+        verbose: Print errors (set False for parallel contexts)
+
+    Returns:
+        DataFrame of concatenated results, or None if no results
+    """
+    if not HAS_GSEAPY or not gene_list:
+        return None
+
+    all_results = []
+    subdir = f'{identifier}_enrichr' if identifier else 'enrichr'
+
+    for gs in GO_GENE_SETS:
+        try:
+            if background is not None:
+                enr = gp.enrich(
+                    gene_list=gene_list,
+                    gene_sets=gs,
+                    background=background,
+                    outdir=os.path.join(output_dir, subdir),
+                    cutoff=0.05
+                )
+            else:
+                enr = gp.enrichr(
+                    gene_list=gene_list,
+                    gene_sets=gs,
+                    organism='human',
+                    outdir=os.path.join(output_dir, subdir),
+                    cutoff=0.05
+                )
+            if enr.results is not None and not enr.results.empty:
+                all_results.append(enr.results)
+        except Exception as e:
+            if verbose:
+                print(f"  GO enrichment for {gs} failed: {e}")
+            continue
+
+    if not all_results:
+        return None
+
+    full_results_df = pd.concat(all_results, ignore_index=True)
+
+    if identifier:
+        summary_file = os.path.join(output_dir, f"go_summary_{identifier}.csv")
+        full_results_df.to_csv(summary_file, index=False)
+
+    return full_results_df
 
 
 # =============================================================================

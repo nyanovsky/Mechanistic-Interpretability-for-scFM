@@ -181,6 +181,50 @@ def load_activation_matrices(interpretations_dir):
     return fg_mat, cf_mat
 
 
+def compute_de_genes(logits_a, logits_b, gene_names, top_n=100):
+    """Compute differentially expressed genes between two conditions using paired t-test.
+
+    Args:
+        logits_a: Condition logits [n_cells, n_genes] (numpy array)
+        logits_b: Reference logits [n_cells, n_genes] (numpy array)
+        gene_names: Array of gene names matching columns
+        top_n: Number of top up/down genes to return
+
+    Returns:
+        tuple: (top_up_genes, top_down_genes, stats_dict)
+            stats_dict contains: t_stats, p_vals, mean_diff, sig_mask, sig_sorted_indices
+    """
+    from scipy.stats import ttest_rel
+
+    t_stats, p_vals = ttest_rel(logits_a, logits_b, axis=0)
+
+    t_stats = np.nan_to_num(t_stats)
+    p_vals = np.nan_to_num(p_vals, nan=1.0)
+
+    mean_diff = (logits_a - logits_b).mean(axis=0)
+
+    # Bonferroni correction
+    p_thresh = 0.05 / len(gene_names)
+    sig_mask = (np.abs(t_stats) > 0) & (p_vals < p_thresh)
+
+    sig_indices = np.where(sig_mask)[0]
+    # Sort descending by mean difference (largest positive first)
+    sig_sorted = sig_indices[np.argsort(mean_diff[sig_indices])[::-1]]
+
+    top_up_genes = gene_names[sig_sorted[:top_n]].tolist() if len(sig_sorted) >= top_n else gene_names[sig_sorted].tolist()
+    top_down_genes = gene_names[sig_sorted[-top_n:]].tolist()[::-1] if len(sig_sorted) >= top_n else []
+
+    stats_dict = {
+        't_stats': t_stats,
+        'p_vals': p_vals,
+        'mean_diff': mean_diff,
+        'sig_mask': sig_mask,
+        'sig_sorted_indices': sig_sorted,
+    }
+
+    return top_up_genes, top_down_genes, stats_dict
+
+
 def get_expressed_genes(raw_data_path=None, min_mean_expr=0.01, min_pct_cells=0.5,
                         gene_names_file=None, expressed_mask_file=None):
     """Return indices, names, and mask for genes with sufficient expression.

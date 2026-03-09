@@ -13,74 +13,19 @@ import os
 import sys
 import argparse
 import numpy as np
-import pandas as pd
 import anndata as ad
 import matplotlib.pyplot as plt
 import torch
-from scipy import stats
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from utils.data_utils import get_expressed_genes_mask
+from utils.data_utils import get_expressed_genes_mask, compute_de_genes
+from utils.go_utils import run_go_enrichment
 
 from aido_cell.utils import align_adata
-
-# Try to import gseapy
-try:
-    import gseapy as gp
-    HAS_GSEAPY = True
-except ImportError:
-    HAS_GSEAPY = False
 
 # --- Constants ---
 RAW_DATA_FILE = "../../data/pbmc/pbmc3k_raw.h5ad"
 PROCESSED_DATA_FILE = "../../data/pbmc/pbmc3k_processed.h5ad"
 
-
-def run_go_enrichment(gene_list, description, output_dir, background=None):
-    """
-    Run GO enrichment on a gene list using gseapy.
-
-    If background is provided, uses gp.enrich() (offline hypergeometric test)
-    which respects the background gene list. Otherwise uses gp.enrichr() (online API).
-    """
-    if not HAS_GSEAPY or not gene_list:
-        return None
-
-    gene_sets = ['GO_Biological_Process_2021', 'GO_Molecular_Function_2021', 'GO_Cellular_Component_2021']
-    all_results = []
-
-    for gs in gene_sets:
-        try:
-            if background is not None:
-                enr = gp.enrich(
-                    gene_list=gene_list,
-                    gene_sets=gs,
-                    background=background,
-                    outdir=os.path.join(output_dir, f'enrichr_{description}_{gs}'),
-                    cutoff=0.05
-                )
-            else:
-                enr = gp.enrichr(
-                    gene_list=gene_list,
-                    gene_sets=gs,
-                    organism='human',
-                    outdir=os.path.join(output_dir, f'enrichr_{description}_{gs}'),
-                    cutoff=0.05
-                )
-            if enr.results is not None and not enr.results.empty:
-                all_results.append(enr.results)
-        except Exception as e:
-            print(f"  GO enrichment for {gs} failed: {e}")
-            continue
-
-    if not all_results:
-        return None
-
-    full_results_df = pd.concat(all_results, ignore_index=True)
-    summary_file = os.path.join(output_dir, f"go_summary_{description}.csv")
-    full_results_df.to_csv(summary_file, index=False)
-
-    return full_results_df
 
 # --- Processing and Analysis Functions ---
 
@@ -95,59 +40,35 @@ def process_steered_logits(logits_tensor, attention_mask):
     return logits_tensor.float().cpu().numpy()
 
 def analyze_de_paired(logits_cond, logits_ref, gene_names, expr_mask, label, output_dir, top_n=100, background=None):
-    """
-    Identify robustly DE genes using a Paired T-Test, sorted by Effect Size.
-    """
+    """Identify robustly DE genes using a Paired T-Test, sorted by Effect Size."""
     print(f"\n--- Analyzing: {label} ---")
-    
+
     # Subset to expressed genes
     cond_expr = logits_cond[:, expr_mask]
     ref_expr = logits_ref[:, expr_mask]
     names_expr = gene_names[expr_mask]
-    
-    # Paired T-test across cells
-    t_stats, p_vals = stats.ttest_rel(cond_expr, ref_expr, axis=0)
-    
-    # Clean up NaNs
-    t_stats = np.nan_to_num(t_stats)
-    p_vals = np.nan_to_num(p_vals, nan=1.0)
-    
-    # Calculate Mean Difference (Effect Size) for sorting
-    mean_diff = (cond_expr - ref_expr).mean(axis=0)
-    
-    # Bonferroni correction
-    p_thresh = 0.05 / len(names_expr)
 
-    # Significant masks (T-stat sign + P-value)
-    sig_mask = (np.abs(t_stats) > 0) & (p_vals < p_thresh)
+    top_up_genes, top_down_genes, de_stats = compute_de_genes(cond_expr, ref_expr, names_expr, top_n=top_n)
 
-    # Sort by MAGNITUDE (Mean Difference)
-    sig_indices = np.where(sig_mask)[0]
-    # Sort descending (largest positive difference first)
-    sig_sorted = sig_indices[np.argsort(mean_diff[sig_indices])[::-1]]
-
-    # Report effect sizes
-    if len(sig_sorted) > 0:
-        top_logfc = mean_diff[sig_sorted[0]]
-        bottom_logfc = mean_diff[sig_sorted[-1]]
-        median_abs_logfc = np.median(np.abs(mean_diff[sig_indices]))
-        print(f"  Significant genes: {len(sig_indices)}/{len(names_expr)} ({100*len(sig_indices)/len(names_expr):.1f}%)")
-        print(f"  Effect sizes (logFC): max_up={top_logfc:.4f}, max_down={bottom_logfc:.4f}, median_abs={median_abs_logfc:.4f}")
+    sig_count = de_stats['sig_mask'].sum()
+    if sig_count > 0:
+        mean_diff = de_stats['mean_diff']
+        sig_sorted = de_stats['sig_sorted_indices']
+        median_abs_logfc = np.median(np.abs(mean_diff[de_stats['sig_mask']]))
+        print(f"  Significant genes: {sig_count}/{len(names_expr)} ({100*sig_count/len(names_expr):.1f}%)")
+        print(f"  Effect sizes (logFC): max_up={mean_diff[sig_sorted[0]]:.4f}, max_down={mean_diff[sig_sorted[-1]]:.4f}, median_abs={median_abs_logfc:.4f}")
     else:
         print(f"  No significant genes found")
 
-    top_up_genes = names_expr[sig_sorted[:top_n]].tolist() if len(sig_sorted) >= top_n else names_expr[sig_sorted].tolist()
-    top_down_genes = names_expr[sig_sorted[-top_n:]].tolist()[::-1] if len(sig_sorted) >= top_n else []
-
     print(f"  Top Up (by Magnitude): {top_up_genes[:10]}")
     print(f"  Top Down (by Magnitude): {top_down_genes[:10]}")
-    
+
     # Run GO
     if top_up_genes:
-        run_go_enrichment(top_up_genes, f"Up_{label}", output_dir, background=background)
+        run_go_enrichment(top_up_genes, output_dir, background=background, identifier=f"Up_{label}")
     if top_down_genes:
-        run_go_enrichment(top_down_genes, f"Down_{label}", output_dir, background=background)
-        
+        run_go_enrichment(top_down_genes, output_dir, background=background, identifier=f"Down_{label}")
+
     return top_up_genes, top_down_genes
 
 def plot_trajectories_side_by_side(means_dict, gene_names, top_up, top_down, label, output_dir):

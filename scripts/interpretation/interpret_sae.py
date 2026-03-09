@@ -20,18 +20,11 @@ from tqdm import tqdm
 from scipy.stats import spearmanr
 from collections import defaultdict
 
-# Try to import gseapy for GO enrichment
-try:
-    import gseapy as gp
-    HAS_GSEAPY = True
-except ImportError:
-    print("WARNING: gseapy not installed. GO enrichment will be skipped.")
-    print("Install with: pip install gseapy")
-    HAS_GSEAPY = False
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils import load_sae
 from utils.data_utils import load_gene_names, get_expressed_genes
+from utils.go_utils import run_go_enrichment
 
 # CLI arguments
 def parse_args():
@@ -194,33 +187,6 @@ def select_genes_adaptive(feature_activations, pr, use_threshold=False,
     return selected
 
 
-def run_go_enrichment(gene_list, feature_idx, output_dir):
-    """Run GO enrichment on a gene list using gseapy."""
-    if not HAS_GSEAPY:
-        return None
-
-    gene_sets = ['GO_Biological_Process_2021', 'GO_Molecular_Function_2021', 'GO_Cellular_Component_2021']
-    all_results = []
-
-    for gs in gene_sets:
-        try:
-            enr = gp.enrichr(
-                gene_list=gene_list,
-                gene_sets=gs,
-                organism='human',
-                outdir=os.path.join(output_dir, f'feature_{feature_idx}_enrichr'),
-                cutoff=0.05
-            )
-            if enr.results is not None and not enr.results.empty:
-                all_results.append(enr.results)
-        except Exception as e:
-            print(f"  GO enrichment failed for feature {feature_idx} ({gs}): {e}")
-            continue
-
-    if not all_results:
-        return None
-
-    return pd.concat(all_results, ignore_index=True)
 
 
 def analyze_cell_type_correlations(cell_feature_matrix, cell_types):
@@ -349,7 +315,7 @@ def main():
         top_genes = [expressed_names[i] for i in top_local_indices]
 
         # Run GO enrichment
-        result = run_go_enrichment(top_genes, feat_idx, OUTPUT_DIR)
+        result = run_go_enrichment(top_genes, OUTPUT_DIR, identifier=f"feature_{feat_idx}")
         if result is not None and len(result) > 0:
             go_results[feat_idx] = result
 
