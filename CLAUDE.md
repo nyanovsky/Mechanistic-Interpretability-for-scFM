@@ -55,7 +55,7 @@ conda activate aido_env
 
 ## Lab Journal
 
-`reports/` is the project's lab journal. Write there for:
+`reports/` is the project's lab journal. Read there when you need to gather context for experiment's results or past analysis. Write there for:
 - Experiment results and their interpretation
 - Design decisions and rationale
 - Progress updates on major milestones
@@ -66,6 +66,3 @@ Key reports:
 - `reports/online_training_report.md` — online SAE training design
 - `reports/steering_results.md` — steering experiment results
 - `reports/cd4_steering.md` — CD4 T -> CD8 T steering
-
-## Browser Usage
-- When accessing a browser page (especially GitHub), output SUCCESS if successful, ERROR otherwise. Do not use content from failed pages.

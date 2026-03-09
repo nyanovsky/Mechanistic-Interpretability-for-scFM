@@ -6,7 +6,7 @@ Training Sparse Autoencoders (SAEs) on frozen single-cell Foundation Model (scFM
 
 ## Pipeline
 
-1. **Train SAE** on scFM layer activations (CELLxGENE bone marrow, ~900k cells)
+1. **Train SAE** on scFM layer activations
 2. **Interpret features** via Gene Ontology enrichment on top-activating genes per feature
 3. **Analyze features** — coactivation, feature graphs, scale analysis
 4. **Steer** — train adapters to predict which features to steer to achieve an objective in output expression space:
