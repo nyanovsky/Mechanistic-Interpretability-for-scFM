@@ -152,54 +152,33 @@ def compute_direction_metrics(baseline_source, baseline_target, steered_source, 
 
 
 def plot_gap_fraction_histogram(df, title, output_path, n_genes, p_value):
-    """Plot gap fraction histogram with annotations."""
-    fig, ax = plt.subplots(figsize=(8, 5))
+    """Plot gap fraction histogram (ICLR-ready)."""
+    fig, ax = plt.subplots(figsize=(5, 3.5))
 
     gap = df['gap_fraction'].values
-    # Clip extreme values for visualization
     gap_clipped = np.clip(gap, -3, 5)
 
     ax.hist(gap_clipped, bins=80, color='steelblue', alpha=0.7, edgecolor='white', linewidth=0.3)
-    ax.axvline(0, color='red', linestyle='--', linewidth=1.5, label='No change')
-    ax.axvline(1, color='green', linestyle='--', linewidth=1.5, label='CD8 mean')
-    ax.axvline(np.median(gap), color='orange', linestyle='-', linewidth=2, label=f'Median = {np.median(gap):.3f}')
+    ax.axvline(0, color='red', linestyle='--', linewidth=1.2, label='No change')
+    ax.axvline(1, color='green', linestyle='--', linewidth=1.2, label='Target mean')
 
-    pct_correct = df['correct'].mean() * 100
-    pct_overshoot = (gap > 1).mean() * 100
-
-    annotation = (
-        f"N genes = {n_genes}\n"
-        f"Median gap fraction = {np.median(gap):.3f}\n"
-        f"Correct direction = {pct_correct:.1f}%\n"
-        f"Overshoot (>1) = {pct_overshoot:.1f}%\n"
-        f"Binomial p = {p_value:.2e}"
-    )
-    ax.text(0.97, 0.97, annotation, transform=ax.transAxes, fontsize=9,
-            verticalalignment='top', horizontalalignment='right',
-            bbox=dict(boxstyle='round,pad=0.4', facecolor='wheat', alpha=0.8))
-
-    ax.set_xlabel('Gap Fraction (0 = no change, 1 = CD8 mean)')
-    ax.set_ylabel('Number of genes')
-    ax.set_title(title)
-    ax.legend(loc='upper left')
+    ax.set_xlabel('Gap fraction', fontsize=10)
+    ax.set_ylabel('Number of genes', fontsize=10)
+    ax.legend(fontsize=7, framealpha=0.8)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"  Saved: {output_path}")
 
 
-def plot_cumulative_direction_curve(df, rank_col, title, output_path):
-    """Plot cumulative % correct direction and median gap fraction vs gene rank.
+def plot_cumulative_direction_curves(df, rank_col, output_dir, framing_name):
+    """Plot cumulative % correct and median gap fraction as separate PDFs (ICLR-ready).
 
     Genes are ranked by descending |rank_col|, then metrics are computed
     cumulatively as more genes are included.
-
-    Args:
-        df: DataFrame with 'correct', 'gap_fraction', and rank_col columns
-        rank_col: Column name to rank genes by (absolute value, descending)
-        title: Plot title
-        output_path: Where to save the figure
     """
     # Sort by descending absolute effect size
     order = df[rank_col].abs().sort_values(ascending=False).index
@@ -215,45 +194,39 @@ def plot_cumulative_direction_curve(df, rank_col, title, output_path):
     gap_vals = df_sorted['gap_fraction'].values
     cum_median = np.array([np.median(gap_vals[:k]) for k in ks])
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    # --- Plot 1: % correct direction ---
+    fig, ax = plt.subplots(figsize=(5, 3.5))
+    ax.plot(ks, cum_correct, color='steelblue', linewidth=1.5)
+    ax.axhline(50, color='gray', linestyle='--', linewidth=1, alpha=0.7, label='Chance (50%)')
+    ax.set_xlabel('Genes included (ranked by effect size)', fontsize=10)
+    ax.set_ylabel('Cumulative % correct direction', fontsize=10)
+    ax.set_ylim(0, 105)
+    ax.legend(fontsize=8, framealpha=0.8)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
-    # Left panel: % correct direction
-    ax1.plot(ks, cum_correct, color='steelblue', linewidth=1.5)
-    ax1.axhline(50, color='gray', linestyle='--', linewidth=1, alpha=0.7, label='Chance (50%)')
-    ax1.set_xlabel('Number of genes included (ranked by effect size)')
-    ax1.set_ylabel('Cumulative % correct direction')
-    ax1.set_ylim(0, 105)
-    ax1.set_title('% Correct Direction')
-    ax1.legend(fontsize=8)
-
-    # Annotate binomial p-values at key cutoffs
-    cutoffs = [k for k in [100, 500, n] if k <= n]
-    for k in cutoffs:
-        n_corr = int(df_sorted['correct'].iloc[:k].sum())
-        p = binomtest(n_corr, k, 0.5, alternative='greater').pvalue
-        pct = n_corr / k * 100
-        ax1.annotate(
-            f'k={k}: {pct:.0f}%, p={p:.1e}',
-            xy=(k, cum_correct[k - 1]),
-            xytext=(10, 10), textcoords='offset points',
-            fontsize=7, alpha=0.8,
-            arrowprops=dict(arrowstyle='->', alpha=0.5),
-        )
-
-    # Right panel: median gap fraction
-    ax2.plot(ks, cum_median, color='coral', linewidth=1.5)
-    ax2.axhline(0, color='red', linestyle='--', linewidth=1, alpha=0.5, label='No change')
-    ax2.axhline(1, color='green', linestyle='--', linewidth=1, alpha=0.5, label='CD8 mean')
-    ax2.set_xlabel('Number of genes included (ranked by effect size)')
-    ax2.set_ylabel('Cumulative median gap fraction')
-    ax2.set_title('Median Gap Fraction')
-    ax2.legend(fontsize=8)
-
-    fig.suptitle(title, fontsize=12)
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    path1 = os.path.join(output_dir, f'cumulative_correct_{framing_name}.pdf')
+    plt.savefig(path1, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"  Saved: {output_path}")
+    print(f"  Saved: {path1}")
+
+    # --- Plot 2: median gap fraction ---
+    fig, ax = plt.subplots(figsize=(5, 3.5))
+    ax.plot(ks, cum_median, color='coral', linewidth=1.5)
+    ax.axhline(0, color='red', linestyle='--', linewidth=1, alpha=0.5, label='No change')
+    ax.axhline(1, color='green', linestyle='--', linewidth=1, alpha=0.5, label='Target mean')
+    ax.set_xlabel('Genes included (ranked by effect size)', fontsize=10)
+    ax.set_ylabel('Cumulative median gap fraction', fontsize=10)
+    ax.legend(fontsize=8, framealpha=0.8)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    plt.tight_layout()
+    path2 = os.path.join(output_dir, f'cumulative_gap_{framing_name}.pdf')
+    plt.savefig(path2, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"  Saved: {path2}")
 
 
 def analyze_framing(baseline_source, baseline_target, steered_source,
@@ -313,11 +286,8 @@ def analyze_framing(baseline_source, baseline_target, steered_source,
             df_dir, f'{framing_name}: {label}', plot_path, n_dir, p_dir
         )
 
-    # Cumulative direction curve (all genes, ranked by effect size)
-    cum_path = os.path.join(output_dir, f'cumulative_{framing_name}.pdf')
-    plot_cumulative_direction_curve(
-        df, rank_col, f'Cumulative Direction: {framing_name}', cum_path
-    )
+    # Cumulative direction curves (separate PDFs)
+    plot_cumulative_direction_curves(df, rank_col, output_dir, framing_name)
 
     return df
 
