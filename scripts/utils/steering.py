@@ -17,7 +17,6 @@ class SteeringConfig:
     steering_features: List[int]
     alphas: List[float]
     layer_idx: int = 12
-    reference: str = 'max'  # 'max', 'mean', or 'median'
     description: str = ""
 
 
@@ -59,8 +58,6 @@ class SAESteeringModel(nn.Module):
         alpha_vector: Optional[torch.Tensor] = None,
         steering_features: Optional[List[int]] = None,
         alpha: Optional[float] = None,
-        feature_stats: Optional[Dict[str, torch.Tensor]] = None,
-        reference: str = 'max'
     ):
         super().__init__()
         self.model = model
@@ -78,17 +75,11 @@ class SAESteeringModel(nn.Module):
         else:
             raise ValueError("Must provide either alpha_vector OR (steering_features + alpha)")
 
-        self.feature_stats = feature_stats
-        self.reference = reference
-
         self.hook_handle = None
         self._register_hook()
 
     def _register_hook(self):
         """Register forward hook on the specified layer."""
-        if self.mode == 'sparse' and self.feature_stats is not None:
-            self.reference_values = self.feature_stats[self.reference].to(next(self.model.parameters()).device)
-
         def steering_hook(module, input, output):
             hidden_states = output[0]  # Shape: (batch, seq_len, hidden_size)
             steered_states = self._apply_sae_steering(hidden_states)
@@ -158,8 +149,6 @@ class SAESteeringModel(nn.Module):
         if self.hook_handle is not None:
             self.hook_handle.remove()
             self.hook_handle = None
-        if hasattr(self, 'reference_values'):
-            del self.reference_values
 
 
 class SteeringExperiment:
@@ -169,7 +158,6 @@ class SteeringExperiment:
         self,
         model: nn.Module,
         sae: nn.Module,
-        feature_stats: Dict[str, torch.Tensor],
         attention_mask: np.ndarray,
         layer_idx: int = 12,
         device: str = 'cuda',
@@ -177,7 +165,6 @@ class SteeringExperiment:
     ):
         self.model = model
         self.sae = sae
-        self.feature_stats = feature_stats
         self.attention_mask = attention_mask
         self.layer_idx = layer_idx
         self.device = device
@@ -185,76 +172,10 @@ class SteeringExperiment:
 
         self.attn_mask_tensor = torch.from_numpy(attention_mask).unsqueeze(0).to(device)
 
-    def run_baseline(self, adata, cell_indices=None):
-        """Run baseline (NO steering) forward pass.
-
-        This is a completely separate run without any steering hooks.
-        This is different from alpha=0, which is ABLATION.
-        """
-        if cell_indices is None:
-            cell_indices = np.arange(adata.n_obs)
-
-        print("Running BASELINE (no steering)...")
-
-        embedding_hook = ActivationHook(self.model.bert.encoder.ln)
-
-        outputs_list = []
-        embeddings_list = []
-
-        try:
-            with torch.no_grad():
-                pbar = tqdm(range(0, len(cell_indices), self.batch_size), desc="Baseline")
-                for i in pbar:
-                    batch_idx = cell_indices[i:i+self.batch_size]
-                    batch_counts = adata[batch_idx].X
-                    if hasattr(batch_counts, 'toarray'):
-                        batch_counts = batch_counts.toarray()
-
-                    batch_processed = preprocess_counts(batch_counts, device=self.device)
-
-                    seq_len = batch_processed.shape[1]
-                    pbar.set_postfix({"seq_len": seq_len})
-
-                    batch_attn_mask = self.attn_mask_tensor.repeat(batch_processed.shape[0], 1)
-                    depth_token_mask = torch.ones((batch_processed.shape[0], 2), device=self.device)
-                    batch_attn_mask = torch.cat([batch_attn_mask, depth_token_mask], dim=1)
-
-                    output = self.model(
-                        input_ids=batch_processed,
-                        attention_mask=batch_attn_mask,
-                        return_dict=True
-                    )
-
-                    last_hidden = embedding_hook.get_activations()
-
-                    last_hidden = last_hidden[:, :-2, :]
-                    last_hidden = last_hidden[:, self.attention_mask.astype(bool), :]
-                    cell_embeddings = last_hidden.mean(dim=1)
-
-                    logits = output.logits[:, :-2, :].squeeze(-1)
-                    logits_filtered = logits[:, self.attention_mask.astype(bool)]
-
-                    outputs_list.append(logits_filtered.cpu())
-                    embeddings_list.append(cell_embeddings.cpu())
-
-                    del output, last_hidden, batch_processed, batch_attn_mask
-        finally:
-            embedding_hook.remove()
-            torch.cuda.empty_cache()
-
-        return {
-            'logits': torch.cat(outputs_list, dim=0),
-            'embeddings': torch.cat(embeddings_list, dim=0),
-            'cell_indices': cell_indices,
-            'alpha': None,
-            'is_baseline': True
-        }
-
-    def run_steered(self, adata, steering_features, alpha, reference='max', cell_indices=None):
+    def run_steered(self, adata, steering_features, alpha, cell_indices=None):
         """Run steered forward pass with a SINGLE forward pass per batch.
 
-        Note: alpha=0 means ABLATION (features set to 0), not baseline.
-        For true baseline, use run_baseline().
+        Note: alpha=0 means ABLATION (features set to 0).
         """
         if cell_indices is None:
             cell_indices = np.arange(adata.n_obs)
@@ -267,11 +188,9 @@ class SteeringExperiment:
         steering_model = SAESteeringModel(
             model=self.model,
             sae=self.sae,
-            feature_stats=self.feature_stats,
             layer_idx=self.layer_idx,
             steering_features=steering_features,
             alpha=alpha,
-            reference=reference
         )
 
         embedding_hook = ActivationHook(self.model.bert.encoder.ln)
@@ -326,11 +245,9 @@ class SteeringExperiment:
             'cell_indices': cell_indices,
             'alpha': alpha,
             'steering_features': steering_features,
-            'reference': reference,
-            'is_baseline': False
         }
 
-    def run_experiment(self, config: SteeringConfig, adata, cell_indices=None, include_baseline=True):
+    def run_experiment(self, config: SteeringConfig, adata, cell_indices=None):
         """Run complete steering experiment across multiple alphas."""
         print("="*70)
         print(f"STEERING EXPERIMENT: {config.name}")
@@ -339,39 +256,16 @@ class SteeringExperiment:
             print(f"Description: {config.description}")
         print(f"Steering {len(config.steering_features)} features: {config.steering_features}")
         print(f"Alpha values: {config.alphas}")
-        print(f"Reference: {config.reference}")
         print(f"Layer: {config.layer_idx} (0-indexed)")
         print("="*70)
 
-        print("\nFeature reference values:")
-        for feat_id in config.steering_features[:5]:
-            max_val = self.feature_stats['max'][feat_id].item()
-            mean_val = self.feature_stats['mean'][feat_id].item()
-            print(f"  Feature {feat_id}: max={max_val:.4f}, mean={mean_val:.4f}, ratio={mean_val/max_val:.3f}")
-        if len(config.steering_features) > 5:
-            print(f"  ... and {len(config.steering_features) - 5} more features")
-
-        print("\nInterpretation (multiplicative steering):")
-        print("  - Baseline: No steering applied")
-        print("  - alpha=0: Ablation (all activations set to 0)")
-        print("  - alpha=0.5: Natural activations reduced by 50%")
-        print("  - alpha=1: Natural activations unchanged (no effect)")
-        print("  - alpha=2: Natural activations doubled")
-        print("  - alpha=5: Natural activations amplified 5x")
-        print("  Note: Only affects genes where feature is naturally active")
-        print()
-
         results = {}
-
-        if include_baseline:
-            results['baseline'] = self.run_baseline(adata, cell_indices)
 
         for alpha in config.alphas:
             results[alpha] = self.run_steered(
                 adata,
                 config.steering_features,
                 alpha,
-                config.reference,
                 cell_indices
             )
 
