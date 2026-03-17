@@ -119,11 +119,16 @@ def main():
     parser.add_argument('--steering_file', required=True)
     parser.add_argument('--baseline_file', required=True)
     parser.add_argument('--experiment_name', required=True)
-    parser.add_argument('--background', action='store_true',
+    parser.add_argument('--background', default=True, action='store_true',
                         help='Use expressed genes as background for GO enrichment (gp.enrich instead of gp.enrichr)')
+    parser.add_argument('--celltypes', type=str, nargs='+', default=None,
+                        help='Analyze specific cell types separately (default: all cells together)')
+    parser.add_argument('--processed_file', type=str,
+                        default='data/pbmc/pbmc3k_processed.h5ad',
+                        help='Processed .h5ad with celltype annotations (used with --celltypes)')
     args = parser.parse_args()
 
-    PLOT_DIR = f"../../plots/sae/layer_12/steering_analysis/{args.experiment_name}"
+    PLOT_DIR = f"plots/sae/pbmc/layer_12/steering_analysis/{args.experiment_name}"
     
     os.makedirs(PLOT_DIR, exist_ok=True)
     
@@ -138,6 +143,21 @@ def main():
 
     common_cells = adata_raw.obs_names.intersection(adata_processed.obs_names)
     print(f"Filtered to {len(common_cells)} common cells.")
+
+    # Build celltype masks if requested
+    celltype_masks = {}
+    if args.celltypes is not None:
+        if 'celltype' in adata_processed.obs.columns:
+            cell_type_col = 'celltype'
+        elif 'louvain' in adata_processed.obs.columns:
+            cell_type_col = 'louvain'
+        else:
+            raise ValueError("No celltype column found in processed file")
+        ct_labels = adata_processed.obs.loc[common_cells, cell_type_col]
+        for ct in args.celltypes:
+            mask = (ct_labels == ct).values
+            celltype_masks[ct] = mask
+            print(f"  {ct}: {mask.sum()} cells")
 
     adata_aligned, attention_mask = align_adata(adata_raw)
     gene_names = adata_aligned.var_names[attention_mask.astype(bool)].to_numpy()
@@ -199,18 +219,34 @@ def main():
         print(f"  Alpha {alpha}: Aligned {len(steered_mask)} cells.")
 
     # 5. DE Analysis and Plotting for ALL comparisons
-    for alpha in alphas:
-        # A) Steered vs Baseline
-        label = f"Alpha{alpha}_vs_Baseline"
-        up, down = analyze_de_paired(full_data[alpha], full_data['baseline'], gene_names, expr_mask, label, PLOT_DIR, background=go_background)
-        # Plot immediately for this comparison
-        plot_trajectories_side_by_side(means_dict, gene_names, up, down, label, PLOT_DIR)
+    # If celltypes specified, run separately per celltype; otherwise run on all cells
+    analysis_groups = celltype_masks if celltype_masks else {'all': None}
 
-        # B) Steered vs Ablated (alpha=0)
-        if alpha != 0 and 0 in full_data:
-            label_abl = f"Alpha{alpha}_vs_Ablated"
-            up_abl, down_abl = analyze_de_paired(full_data[alpha], full_data[0], gene_names, expr_mask, label_abl, PLOT_DIR, background=go_background)
-            plot_trajectories_side_by_side(means_dict, gene_names, up_abl, down_abl, label_abl, PLOT_DIR)
+    for group_name, group_mask in analysis_groups.items():
+        if group_mask is not None:
+            print(f"\n{'='*70}")
+            print(f"ANALYZING: {group_name}")
+            print(f"{'='*70}")
+            group_dir = os.path.join(PLOT_DIR, group_name.replace(' ', '_'))
+            os.makedirs(group_dir, exist_ok=True)
+            group_data = {k: v[group_mask] for k, v in full_data.items()}
+            group_means = {k: v[group_mask].mean(axis=0) for k, v in full_data.items()}
+        else:
+            group_dir = PLOT_DIR
+            group_data = full_data
+            group_means = means_dict
+
+        for alpha in alphas:
+            # A) Steered vs Baseline
+            label = f"Alpha{alpha}_vs_Baseline"
+            up, down = analyze_de_paired(group_data[alpha], group_data['baseline'], gene_names, expr_mask, label, group_dir, background=go_background)
+            plot_trajectories_side_by_side(group_means, gene_names, up, down, label, group_dir)
+
+            # B) Steered vs Ablated (alpha=0)
+            if alpha != 0 and 0 in group_data:
+                label_abl = f"Alpha{alpha}_vs_Ablated"
+                up_abl, down_abl = analyze_de_paired(group_data[alpha], group_data[0], gene_names, expr_mask, label_abl, group_dir, background=go_background)
+                plot_trajectories_side_by_side(group_means, gene_names, up_abl, down_abl, label_abl, group_dir)
 
     print("\nAnalysis complete.")
 

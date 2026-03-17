@@ -9,6 +9,10 @@ Usage:
     # Run with a name for the experiment:
     python steering_experiment.py --features 3079 4687 --alphas 0 2 5 \
         --name "cytotoxic_features" --data-file data/pbmc/pbmc3k_raw.h5ad
+
+    # Run on specific cell types only:
+    python steering_experiment.py --features 3079 --alphas 0 2 5 \
+        --celltypes "CD4 T cells" "CD8 T cells" --data-file data/pbmc/pbmc3k_raw.h5ad
 """
 
 import os
@@ -17,6 +21,7 @@ import argparse
 import torch
 import anndata as ad
 import numpy as np
+
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils import load_sae
@@ -52,6 +57,13 @@ def main():
                         help='Layer to steer (0-indexed, default: 12)')
     parser.add_argument('--sae-dir', type=str, default=None,
                         help='Path to SAE directory (default: auto-detect from layer)')
+
+    # Cell type filtering
+    parser.add_argument('--celltypes', type=str, nargs='+', default=None,
+                        help='Cell types to include (default: all cells)')
+    parser.add_argument('--processed-file', type=str,
+                        default='data/pbmc/pbmc3k_processed.h5ad',
+                        help='Processed .h5ad with celltype annotations (used with --celltypes)')
 
     # Processing parameters
     parser.add_argument('--device', type=str,
@@ -90,6 +102,7 @@ def main():
     print(f"Data: {args.data_file}")
     print(f"Layer: {args.layer}")
     print(f"SAE: {args.sae_dir}")
+    print(f"Cell types: {args.celltypes if args.celltypes else 'all'}")
     print(f"Device: {args.device}")
     print(f"Batch size: {args.batch_size}")
     print(f"Output: {args.output_dir}")
@@ -122,11 +135,42 @@ def main():
     adata_aligned, attention_mask = align_adata(adata)
     print(f"  Aligned: {adata_aligned.shape}")
 
-    # Optionally subset cells
+    # Optionally filter by cell type
     cell_indices = None
-    if args.max_cells is not None and args.max_cells < adata_aligned.n_obs:
-        print(f"  Subsampling to {args.max_cells} cells...")
-        cell_indices = np.random.choice(adata_aligned.n_obs, args.max_cells, replace=False)
+    if args.celltypes is not None:
+        print(f"\n  Filtering to cell types: {args.celltypes}")
+        adata_processed = ad.read_h5ad(args.processed_file)
+
+        if 'celltype' in adata_processed.obs.columns:
+            cell_type_col = 'celltype'
+        elif 'louvain' in adata_processed.obs.columns:
+            cell_type_col = 'louvain'
+        else:
+            raise ValueError("No celltype column found in processed file")
+
+        # Match cells between aligned and processed data
+        common_cells = [name for name in adata_aligned.obs_names if name in adata_processed.obs_names]
+        processed_types = adata_processed.obs.loc[common_cells, cell_type_col]
+        matching_cells = processed_types[processed_types.isin(args.celltypes)].index.tolist()
+
+        # Convert to indices in aligned adata
+        name_to_idx = {name: i for i, name in enumerate(adata_aligned.obs_names)}
+        cell_indices = np.array([name_to_idx[name] for name in matching_cells])
+
+        print(f"  Found {len(cell_indices)} cells matching requested types")
+        for ct in args.celltypes:
+            n = (processed_types.loc[[c for c in matching_cells if c in processed_types.index]] == ct).sum()
+            print(f"    {ct}: {n}")
+
+    # Optionally subsample
+    if args.max_cells is not None:
+        if cell_indices is None:
+            if args.max_cells < adata_aligned.n_obs:
+                print(f"  Subsampling to {args.max_cells} cells...")
+                cell_indices = np.random.choice(adata_aligned.n_obs, args.max_cells, replace=False)
+        elif args.max_cells < len(cell_indices):
+            print(f"  Subsampling to {args.max_cells} cells...")
+            cell_indices = np.random.choice(cell_indices, args.max_cells, replace=False)
 
     # Build steering config
     steering_config = SteeringConfig(
