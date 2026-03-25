@@ -18,8 +18,7 @@ from tqdm import tqdm
 from sklearn.decomposition import FastICA
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from utils.data_utils import get_expressed_genes
-from interpretation.compute_feature_matrices import compute_participation_ratio
+from utils.data_utils import get_expressed_genes, compute_participation_ratio
 
 
 def subsample_activations(h5_path, n_samples, seed=42):

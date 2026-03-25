@@ -92,8 +92,47 @@ def load_decoder_weights(sae_dir):
     return W_dec
 
 
+def get_annotated_features(sae_dir, n_features, p_threshold=0.05):
+    """Get boolean mask of features with at least one significant GO term.
+
+    Fast scan: only reads the Adjusted P-value column and short-circuits
+    per feature as soon as one significant term is found.
+
+    Args:
+        sae_dir: Path to SAE directory (interpretations_mean_pooling/ is appended)
+        n_features: Total number of SAE features
+        p_threshold: Adjusted p-value threshold for significance
+
+    Returns:
+        numpy boolean array of shape (n_features,)
+    """
+    interpretations_dir = os.path.join(sae_dir, 'interpretations_mean_pooling')
+    feature_dirs = glob(os.path.join(interpretations_dir, 'feature_*_enrichr'))
+
+    mask = np.zeros(n_features, dtype=bool)
+    for feature_dir in feature_dirs:
+        match = re.search(r'feature_(\d+)_enrichr', feature_dir)
+        if not match:
+            continue
+        feature_id = int(match.group(1))
+        if feature_id >= n_features:
+            continue
+
+        for go_file in glob(os.path.join(feature_dir, 'GO_*_2021.human.enrichr.reports.txt')):
+            try:
+                pvals = pd.read_csv(go_file, sep='\t', usecols=['Adjusted P-value'])
+                if (pvals['Adjusted P-value'] < p_threshold).any():
+                    mask[feature_id] = True
+                    break
+            except Exception:
+                continue
+
+    print(f"Annotated features: {mask.sum()} / {n_features}")
+    return mask
+
+
 def load_go_enrichment(interpretations_dir, p_threshold=0.05, mode='terms'):
-    """Load GO enrichment results.
+    """Load GO enrichment results for annotated features.
 
     Args:
         interpretations_dir (str): Directory containing interpretation results
@@ -104,8 +143,7 @@ def load_go_enrichment(interpretations_dir, p_threshold=0.05, mode='terms'):
         dict: {feature_id: set(terms/ids)}
     """
     feature_data = {}
-    pattern = os.path.join(interpretations_dir, 'feature_*_enrichr')
-    feature_dirs = glob(pattern)
+    feature_dirs = glob(os.path.join(interpretations_dir, 'feature_*_enrichr'))
 
     go_id_regex = re.compile(r'\(GO:(\d+)\)')
 
@@ -293,6 +331,139 @@ def get_expressed_genes_mask(raw_data_path, min_mean_expr=0.01, min_pct_cells=0.
     """
     _, _, expressed_mask = get_expressed_genes(raw_data_path, min_mean_expr, min_pct_cells)
     return expressed_mask
+
+
+def compute_participation_ratio(matrix, axis=1):
+    """Compute Participation Ratio (PR) for each row/column.
+
+    PR measures the effective number of dimensions that contribute to a distribution.
+    Higher PR = more dimensions participate (broader feature).
+    Lower PR = fewer dimensions participate (sparser feature).
+
+    Args:
+        matrix: [n_features, n_dims] array
+        axis: Axis along which to compute PR (default: 1, across columns)
+
+    Returns:
+        pr: array of participation ratios
+    """
+    energy = matrix ** 2
+    energy_sum = energy.sum(axis=axis, keepdims=True)
+    energy_sum[energy_sum == 0] = 1.0
+    probs = energy / energy_sum
+    ipr = (probs ** 2).sum(axis=axis)
+
+    pr = np.zeros_like(ipr)
+    mask = ipr > 0
+    pr[mask] = 1.0 / ipr[mask]
+    return pr
+
+
+def load_feature_attribution_data(fg_matrix_path, alpha_path, direction_csv_path,
+                                   raw_data_path=None, gene_names_file=None):
+    """Load feature-gene matrix, alpha vector, direction CSV, and gene names.
+
+    Args:
+        fg_matrix_path: Path to feature_gene_matrix.npy
+        alpha_path: Path to alpha vector .pt file
+        direction_csv_path: Path to direction_intersection_DE.csv
+        raw_data_path: Path to raw h5ad (for gene names)
+        gene_names_file: Path to pre-computed gene names text file
+
+    Returns:
+        tuple: (fg_matrix, alpha, df_direction, gene_names)
+    """
+    print("Loading feature-gene matrix...")
+    fg_matrix = np.load(fg_matrix_path)
+    if fg_matrix.shape[0] != 5120:
+        fg_matrix = fg_matrix.T
+    print(f"  Shape: {fg_matrix.shape} (features x genes)")
+
+    print("Loading alpha vector...")
+    alpha_data = torch.load(alpha_path, map_location='cpu')
+    alpha = alpha_data['alpha_vector'].numpy()
+    print(f"  Non-identity features (|a-1| > 0.05): {(np.abs(alpha - 1) > 0.05).sum()}")
+
+    print("Loading direction CSV...")
+    df_direction = pd.read_csv(direction_csv_path)
+    print(f"  Genes in CSV: {len(df_direction)}")
+
+    print("Loading gene names...")
+    gene_names = load_gene_names(
+        raw_data_path=raw_data_path,
+        gene_names_file=gene_names_file
+    )
+    print(f"  Total genes: {len(gene_names)}")
+
+    return fg_matrix, alpha, df_direction, gene_names
+
+
+def load_go_enrichment_detailed(interpretations_dir, feature_ids=None, p_threshold=0.05):
+    """Load detailed GO enrichment results with p-values and genes.
+
+    Like load_go_enrichment but returns full DataFrames instead of term sets.
+
+    Args:
+        interpretations_dir: Directory containing feature_*_enrichr/ subdirectories
+        feature_ids: Optional list/set of feature IDs to load (None = all)
+        p_threshold: Adjusted p-value threshold
+
+    Returns:
+        dict: {feature_id: DataFrame} with columns [Term, Adjusted P-value, Genes, GO_category]
+    """
+    feature_data = {}
+    feature_dirs = glob(os.path.join(interpretations_dir, 'feature_*_enrichr'))
+
+    category_map = {
+        'GO_Biological_Process': 'BP',
+        'GO_Molecular_Function': 'MF',
+        'GO_Cellular_Component': 'CC',
+    }
+
+    for feature_dir in feature_dirs:
+        match = re.search(r'feature_(\d+)_enrichr', feature_dir)
+        if not match:
+            continue
+        feature_id = int(match.group(1))
+        if feature_ids is not None and feature_id not in feature_ids:
+            continue
+
+        dfs = []
+        for go_file in glob(os.path.join(feature_dir, 'GO_*_2021.human.enrichr.reports.txt')):
+            try:
+                df = pd.read_csv(go_file, sep='\t')
+                if 'Adjusted P-value' not in df.columns or 'Term' not in df.columns:
+                    continue
+
+                significant = df[df['Adjusted P-value'] < p_threshold].copy()
+                if len(significant) == 0:
+                    continue
+
+                # Determine GO category from filename
+                basename = os.path.basename(go_file)
+                go_cat = 'unknown'
+                for prefix, abbrev in category_map.items():
+                    if basename.startswith(prefix):
+                        go_cat = abbrev
+                        break
+
+                significant = significant[['Term', 'Adjusted P-value']].copy()
+                if 'Genes' in df.columns:
+                    significant['Genes'] = df.loc[significant.index, 'Genes']
+                else:
+                    significant['Genes'] = ''
+                significant['GO_category'] = go_cat
+                dfs.append(significant)
+            except Exception:
+                continue
+
+        if dfs:
+            feature_data[feature_id] = pd.concat(dfs, ignore_index=True).sort_values(
+                'Adjusted P-value'
+            )
+
+    print(f"Loaded detailed GO enrichment for {len(feature_data)} features")
+    return feature_data
 
 
 def load_feature_statistics(interpretation_dir: str):

@@ -4,7 +4,47 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from .data_utils import get_device
+from .data_utils import get_device, compute_participation_ratio
+
+
+# =============================================================================
+# Gene-Feature Set Computation
+# =============================================================================
+
+def compute_gene_feature_sets(fg_matrix, min_features=5, max_features=200):
+    """Compute top features per gene using gene-centric PR-adaptive thresholding.
+
+    Transposes the feature-gene matrix to (n_genes, n_features), computes PR
+    per gene, then uses PR-adaptive thresholding to get top features per gene.
+
+    Args:
+        fg_matrix: [n_features, n_genes] array
+        min_features: Minimum features per gene
+        max_features: Maximum features per gene
+
+    Returns:
+        tuple: (feature_sets, gene_pr)
+            feature_sets: list of sets, each containing feature indices for that gene
+            gene_pr: [n_genes] array of gene participation ratios
+    """
+    gene_matrix = fg_matrix.T  # (n_genes, n_features)
+
+    print("Computing gene-centric participation ratios...")
+    gene_pr = compute_participation_ratio(gene_matrix, axis=1)
+    print(f"  Gene PR range: [{gene_pr.min():.1f}, {gene_pr.max():.1f}], "
+          f"median: {np.median(gene_pr):.1f}")
+
+    print("Computing top features per gene (PR-adaptive)...")
+    feature_sets = get_top_k_genes_per_feature(
+        gene_matrix, gene_pr, pr_scale=1,
+        min_genes=min_features, max_genes=max_features
+    )
+
+    set_sizes = [len(s) for s in feature_sets]
+    print(f"  Feature set sizes: min={min(set_sizes)}, max={max(set_sizes)}, "
+          f"median={np.median(set_sizes):.0f}, mean={np.mean(set_sizes):.1f}")
+
+    return feature_sets, gene_pr
 
 
 # =============================================================================

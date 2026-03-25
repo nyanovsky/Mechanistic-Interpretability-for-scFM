@@ -106,25 +106,24 @@ class SAESteeringModel(nn.Module):
 
         with torch.no_grad():
             features = self.sae.encode(flat_states.float())
-
             x_reconstructed, _ = self.sae(flat_states.float())
             error = flat_states.float() - x_reconstructed
 
-            if self.mode == 'full_vector':
-                features_steered = features * self.alpha_vector
-            else:
-                features_steered = features.clone()
-                for feat_id in self.steering_features:
-                    features_steered[:, feat_id] *= self.alpha
+        if self.mode == 'full_vector':
+            features_steered = features * self.alpha_vector
+        else:
+            features_steered = features.clone()
+            for feat_id in self.steering_features:
+                features_steered[:, feat_id] *= self.alpha
 
-            decoder_weights = self.sae.decoder.weight.T
-            x_reconstructed_steered = features_steered @ decoder_weights
-            if self.sae.decoder.bias is not None:
-                x_reconstructed_steered = x_reconstructed_steered + self.sae.decoder.bias
-            if self.sae.use_b_pre:
-                x_reconstructed_steered = x_reconstructed_steered + self.sae.b_pre
+        decoder_weights = self.sae.decoder.weight.T
+        x_reconstructed_steered = features_steered @ decoder_weights
+        if self.sae.decoder.bias is not None:
+            x_reconstructed_steered = x_reconstructed_steered + self.sae.decoder.bias
+        if self.sae.use_b_pre:
+            x_reconstructed_steered = x_reconstructed_steered + self.sae.b_pre
 
-            x_steered = x_reconstructed_steered + error
+        x_steered = x_reconstructed_steered + error
 
         steered_states = x_steered.reshape(batch_size, seq_len, hidden_size).to(dtype)
 
@@ -136,12 +135,13 @@ class SAESteeringModel(nn.Module):
             raise ValueError("Can only update alpha_vector in full_vector mode")
         self.alpha_vector = alpha_vector
 
-    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
         """Forward pass with steering applied."""
         return self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            return_dict=True
+            return_dict=True,
+            **kwargs
         )
 
     def remove_hook(self):

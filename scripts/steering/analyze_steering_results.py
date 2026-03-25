@@ -39,7 +39,7 @@ def process_steered_logits(logits_tensor, attention_mask):
     # Logits are already processed, just convert to numpy
     return logits_tensor.float().cpu().numpy()
 
-def analyze_de_paired(logits_cond, logits_ref, gene_names, expr_mask, label, output_dir, top_n=100, background=None):
+def analyze_de_paired(logits_cond, logits_ref, gene_names, expr_mask, label, go_output_dir, top_n=100, background=None):
     """Identify robustly DE genes using a Paired T-Test, sorted by Effect Size."""
     print(f"\n--- Analyzing: {label} ---")
 
@@ -63,11 +63,11 @@ def analyze_de_paired(logits_cond, logits_ref, gene_names, expr_mask, label, out
     print(f"  Top Up (by Magnitude): {top_up_genes[:10]}")
     print(f"  Top Down (by Magnitude): {top_down_genes[:10]}")
 
-    # Run GO
+    # Run GO enrichment (saved to go_output_dir, separate from plots)
     if top_up_genes:
-        run_go_enrichment(top_up_genes, output_dir, background=background, identifier=f"Up_{label}")
+        run_go_enrichment(top_up_genes, go_output_dir, background=background, identifier=f"Up_{label}")
     if top_down_genes:
-        run_go_enrichment(top_down_genes, output_dir, background=background, identifier=f"Down_{label}")
+        run_go_enrichment(top_down_genes, go_output_dir, background=background, identifier=f"Down_{label}")
 
     return top_up_genes, top_down_genes
 
@@ -119,6 +119,8 @@ def main():
     parser.add_argument('--steering_file', required=True)
     parser.add_argument('--baseline_file', required=True)
     parser.add_argument('--experiment_name', required=True)
+    parser.add_argument('--plot_dir', type=str, default=None,
+                        help='Directory for plots and reports (default: plots/sae/pbmc/layer_12/steering_analysis/<experiment_name>)')
     parser.add_argument('--background', default=True, action='store_true',
                         help='Use expressed genes as background for GO enrichment (gp.enrich instead of gp.enrichr)')
     parser.add_argument('--celltypes', type=str, nargs='+', default=None,
@@ -128,9 +130,14 @@ def main():
                         help='Processed .h5ad with celltype annotations (used with --celltypes)')
     args = parser.parse_args()
 
-    PLOT_DIR = f"plots/sae/pbmc/layer_12/steering_analysis/{args.experiment_name}"
-    
+    PLOT_DIR = args.plot_dir
+
+    # GO enrichment outputs go next to the steering file, not in plots
+    steering_dir = os.path.dirname(os.path.abspath(args.steering_file))
+    GO_OUTPUT_DIR = os.path.join(steering_dir, "DE_go")
+
     os.makedirs(PLOT_DIR, exist_ok=True)
+    os.makedirs(GO_OUTPUT_DIR, exist_ok=True)
     
     # 1. Load data and filter cells
     print("Loading data and metadata...")
@@ -227,26 +234,29 @@ def main():
             print(f"\n{'='*70}")
             print(f"ANALYZING: {group_name}")
             print(f"{'='*70}")
-            group_dir = os.path.join(PLOT_DIR, group_name.replace(' ', '_'))
-            os.makedirs(group_dir, exist_ok=True)
+            group_plot_dir = os.path.join(PLOT_DIR, group_name.replace(' ', '_'))
+            group_go_dir = os.path.join(GO_OUTPUT_DIR, group_name.replace(' ', '_'))
+            os.makedirs(group_plot_dir, exist_ok=True)
+            os.makedirs(group_go_dir, exist_ok=True)
             group_data = {k: v[group_mask] for k, v in full_data.items()}
             group_means = {k: v[group_mask].mean(axis=0) for k, v in full_data.items()}
         else:
-            group_dir = PLOT_DIR
+            group_plot_dir = PLOT_DIR
+            group_go_dir = GO_OUTPUT_DIR
             group_data = full_data
             group_means = means_dict
 
         for alpha in alphas:
             # A) Steered vs Baseline
             label = f"Alpha{alpha}_vs_Baseline"
-            up, down = analyze_de_paired(group_data[alpha], group_data['baseline'], gene_names, expr_mask, label, group_dir, background=go_background)
-            plot_trajectories_side_by_side(group_means, gene_names, up, down, label, group_dir)
+            up, down = analyze_de_paired(group_data[alpha], group_data['baseline'], gene_names, expr_mask, label, group_go_dir, background=go_background)
+            plot_trajectories_side_by_side(group_means, gene_names, up, down, label, group_plot_dir)
 
             # B) Steered vs Ablated (alpha=0)
             if alpha != 0 and 0 in group_data:
                 label_abl = f"Alpha{alpha}_vs_Ablated"
-                up_abl, down_abl = analyze_de_paired(group_data[alpha], group_data[0], gene_names, expr_mask, label_abl, group_dir, background=go_background)
-                plot_trajectories_side_by_side(group_means, gene_names, up_abl, down_abl, label_abl, group_dir)
+                up_abl, down_abl = analyze_de_paired(group_data[alpha], group_data[0], gene_names, expr_mask, label_abl, group_go_dir, background=go_background)
+                plot_trajectories_side_by_side(group_means, gene_names, up_abl, down_abl, label_abl, group_plot_dir)
 
     print("\nAnalysis complete.")
 

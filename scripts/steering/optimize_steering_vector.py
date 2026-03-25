@@ -2,268 +2,73 @@
 Optimize a sparse steering vector to move one cell type toward another.
 
 Uses gradient descent with L1 regularization to find a sparse set of SAE features
-that, when steered, move source cell type embeddings toward target cell type centroid.
+that, when steered, move source cell type toward target cell type.
+
+Supports two objectives:
+- latent: minimize L2 distance in cell embedding space (original)
+- expression: minimize weighted MSE in gene expression (logit) space
 
 Example:
     python optimize_steering_vector.py \
         --source_celltype "CD4 T cells" \
         --target_celltype "CD8 T cells" \
         --data_file data/pbmc/pbmc3k_raw.h5ad \
-        --layer 12
+        --objective expression \
+        --logits_file data/pbmc/pbmc3k_logits.h5ad \
+        --gene_weight_mode effect_size
 """
 
 import os
 import sys
 import argparse
 import torch
-import torch.nn as nn
 import anndata as ad
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 from tqdm import tqdm
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from utils import TopKSAE, load_sae
+from utils import load_sae, get_annotated_features
+from utils.steering import SAESteeringModel
 
 from aido_cell.models import CellFoundationConfig
 from aido_cell.models.modeling_cellfoundation import CellFoundationForMaskedLM
 from aido_cell.utils import align_adata, preprocess_counts
 
 
-class OptimizableSteeringModel(nn.Module):
+def resolve_path(path, script_dir):
+    """Resolve path: absolute paths pass through, relative paths resolve from project root."""
+    if os.path.isabs(path):
+        return path
+    return os.path.join(script_dir, '..', '..', path)
+
+
+def load_precomputed_embeddings(embeddings_path, cell_names):
     """
-    Steering model with learnable per-feature alpha vector.
-
-    Applies SAE-based steering with a learnable alpha for each feature.
-    """
-
-    def __init__(
-        self,
-        model,
-        sae,
-        alpha_vector_full,
-        alpha_learnable,
-        annotated_mask,
-        attention_mask,
-        layer_idx: int,
-        device: str
-    ):
-        super().__init__()
-        self.model = model
-        self.sae = sae
-        self.alpha_vector_full = alpha_vector_full  # Full vector (fixed at 1.0)
-        self.alpha_learnable = alpha_learnable  # Learnable subset
-        self.annotated_mask = annotated_mask  # Which features are learnable
-        self.attention_mask = attention_mask  # (n_genes,) boolean mask
-        self.layer_idx = layer_idx
-        self.device = device
-        self.hook_handle = None
-
-        # Register hook
-        self._register_steering_hook()
-
-    def _register_steering_hook(self):
-        """Register forward hook for steering."""
-        def steering_hook(module, input, output):
-            # output is a tuple (hidden_states,) for BERT layers
-            if isinstance(output, tuple):
-                hidden_states = output[0]
-            else:
-                hidden_states = output
-
-            # Apply steering
-            steered_states = self._apply_sae_steering(hidden_states)
-
-            # Return as tuple if original was tuple
-            if isinstance(output, tuple):
-                return (steered_states,) + output[1:]
-            return steered_states
-
-        target_layer = self.model.bert.encoder.layer[self.layer_idx]
-        self.hook_handle = target_layer.register_forward_hook(steering_hook)
-
-    def _apply_sae_steering(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        """
-        Apply SAE-based steering with learnable alpha vector.
-
-        Args:
-            hidden_states: (batch, seq_len, hidden_size)
-
-        Returns:
-            steered_states: (batch, seq_len, hidden_size)
-        """
-        batch_size, seq_len, hidden_size = hidden_states.shape
-        dtype = hidden_states.dtype
-
-        # Flatten batch and sequence dimensions for SAE
-        flat_states = hidden_states.reshape(-1, hidden_size)
-
-        # Encode with SAE
-        features = self.sae.encode(flat_states.float())
-
-        # Get original reconstruction and error
-        decoder_weights = self.sae.decoder.weight.T
-        x_reconstructed = features @ decoder_weights
-        error = flat_states.float() - x_reconstructed
-
-        # Construct full alpha vector from learnable subset
-        alpha_full = self.alpha_vector_full.clone()
-        alpha_full[self.annotated_mask] = self.alpha_learnable
-
-        # STEER: Scale features by alpha vector
-        # Broadcasting: features (batch*seq, n_features) * alpha_full (n_features,)
-        features_steered = features * alpha_full
-
-        # Reconstruct from steered features
-        x_reconstructed_steered = features_steered @ decoder_weights
-
-        # Add back error term
-        x_steered = x_reconstructed_steered + error
-
-        # Reshape back
-        steered_states = x_steered.reshape(batch_size, seq_len, hidden_size).to(dtype)
-
-        return steered_states
-
-    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
-        """
-        Forward pass with steering applied.
-
-        Returns cell embeddings computed with proper attention mask filtering.
-        """
-        outputs = self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            output_hidden_states=True,
-            return_dict=True
-        )
-
-        # Extract final hidden states
-        last_hidden = outputs.hidden_states[-1]
-
-        # Remove depth tokens
-        last_hidden = last_hidden[:, :-2, :]
-
-        # Filter to valid genes using attention mask
-        last_hidden_filtered = last_hidden[:, self.attention_mask, :]
-
-        # Average over valid genes
-        cell_embeddings = last_hidden_filtered.mean(dim=1)
-
-        return cell_embeddings
-
-    def remove_hooks(self):
-        """Remove steering hooks."""
-        if self.hook_handle is not None:
-            self.hook_handle.remove()
-
-
-def load_precomputed_embeddings(embeddings_path, processed_path):
-    """
-    Load pre-computed embeddings and align with cell type annotations.
+    Load pre-computed embeddings aligned to cell_names ordering.
 
     Returns:
         embeddings: (n_cells, hidden_dim) numpy array
-        cell_types: (n_cells,) cell type labels
-        cell_names: List of cell names
     """
-    # Load embeddings
     embeddings_dict = torch.load(embeddings_path, map_location='cpu')
 
     if isinstance(embeddings_dict, dict):
         embeddings = embeddings_dict['embeddings']
         if not isinstance(embeddings, np.ndarray):
             embeddings = embeddings.numpy()
-        cell_names = embeddings_dict['cell_names']
+        emb_cell_names = embeddings_dict['cell_names']
     else:
         embeddings = embeddings_dict
         if not isinstance(embeddings, np.ndarray):
             embeddings = embeddings.numpy()
-        cell_names = None
+        return embeddings
 
-    # Load cell types
-    adata_processed = ad.read_h5ad(processed_path)
+    # Align to cell_names ordering
+    name_to_idx = {name: i for i, name in enumerate(emb_cell_names)}
+    aligned_embeddings = np.array([embeddings[name_to_idx[name]] for name in cell_names
+                                    if name in name_to_idx])
 
-    if 'celltype' in adata_processed.obs.columns:
-        cell_type_col = 'celltype'
-    elif 'louvain' in adata_processed.obs.columns:
-        cell_type_col = 'louvain'
-    else:
-        raise ValueError("No cell type column found")
-
-    # Align
-    if cell_names is None:
-        cell_names = adata_processed.obs_names
-        cell_types = adata_processed.obs[cell_type_col].values
-    else:
-        # Filter to common cells and align order
-        name_to_idx_embeddings = {name: i for i, name in enumerate(cell_names)}
-
-        aligned_embeddings = []
-        aligned_cell_types = []
-        aligned_names = []
-
-        for name in adata_processed.obs_names:
-            if name in name_to_idx_embeddings:
-                idx = name_to_idx_embeddings[name]
-                aligned_embeddings.append(embeddings[idx])
-                aligned_cell_types.append(adata_processed[name].obs[cell_type_col].values[0])
-                aligned_names.append(name)
-
-        embeddings = np.array(aligned_embeddings)
-        cell_types = np.array(aligned_cell_types)
-        cell_names = aligned_names
-
-    return embeddings, cell_types, cell_names
-
-
-def plot_alpha_distribution(alpha_vector, output_path):
-    """Plot distribution of learned alpha values."""
-    alphas = alpha_vector.detach().cpu().numpy()
-
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
-
-    # Plot 1: Histogram of all alphas
-    axes[0].hist(alphas, bins=50, edgecolor='black')
-    axes[0].set_xlabel('Alpha value')
-    axes[0].set_ylabel('Count')
-    axes[0].set_title('Distribution of all alpha values')
-    axes[0].axvline(1.0, color='red', linestyle='--', linewidth=1, label='Identity (alpha=1)')
-    axes[0].legend()
-
-    # Plot 2: Histogram of non-identity alphas
-    non_identity_alphas = alphas[np.abs(alphas - 1.0) > 1e-6]
-    if len(non_identity_alphas) > 0:
-        axes[1].hist(non_identity_alphas, bins=50, edgecolor='black')
-        axes[1].set_xlabel('Alpha value')
-        axes[1].set_ylabel('Count')
-        axes[1].set_title(f'Non-identity alphas (n={len(non_identity_alphas)})')
-        axes[1].axvline(1.0, color='red', linestyle='--', linewidth=1)
-    else:
-        axes[1].text(0.5, 0.5, 'No non-identity alphas', ha='center', va='center')
-        axes[1].set_title('Non-identity alphas')
-
-    # Plot 3: Top-K largest |alpha - 1| values
-    top_k = 50
-    deviations = np.abs(alphas - 1.0)
-    top_indices = np.argsort(deviations)[-top_k:][::-1]
-    top_alphas = alphas[top_indices]
-
-    colors = ['red' if a < 1.0 else 'blue' for a in top_alphas]
-    axes[2].barh(range(len(top_alphas)), top_alphas, color=colors)
-    axes[2].axvline(1.0, color='black', linestyle='--', linewidth=1)
-    axes[2].set_xlabel('Alpha value')
-    axes[2].set_ylabel(f'Top {top_k} features')
-    axes[2].set_title(f'Top {top_k} features by |alpha - 1|')
-    axes[2].invert_yaxis()
-
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
-
-    print(f"Saved alpha distribution plot to {output_path}")
+    return aligned_embeddings
 
 
 def main():
@@ -274,6 +79,16 @@ def main():
                        help='Source cell type to steer')
     parser.add_argument('--target_celltype', type=str, required=True,
                        help='Target cell type to steer toward')
+
+    # Objective
+    parser.add_argument('--objective', type=str, default='latent',
+                       choices=['latent', 'expression'],
+                       help='Optimization objective: latent (embedding L2) or expression (logit MSE)')
+    parser.add_argument('--logits_file', type=str, default=None,
+                       help='Path to pre-computed logits .h5ad (required for expression objective)')
+    parser.add_argument('--gene_weight_mode', type=str, default='uniform',
+                       choices=['uniform', 'effect_size'],
+                       help='Gene weighting for expression objective')
 
     # Data paths
     parser.add_argument('--data_file', type=str, required=True,
@@ -316,6 +131,9 @@ def main():
 
     args = parser.parse_args()
 
+    if args.objective == 'expression' and args.logits_file is None:
+        parser.error("--logits_file is required when --objective is 'expression'")
+
     # Setup paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -330,24 +148,30 @@ def main():
     print("="*70)
     print(f"Source: {args.source_celltype}")
     print(f"Target: {args.target_celltype}")
+    print(f"Objective: {args.objective}")
+    if args.objective == 'expression':
+        print(f"Gene weighting: {args.gene_weight_mode}")
     print(f"Layer: {args.layer}")
     print(f"Learning rate: {args.lr}")
     print(f"L1 lambda: {args.lambda_l1}")
     print(f"Epochs: {args.num_epochs}")
     print("="*70)
 
-    # 1. Load pre-computed embeddings and compute target centroid
-    print("\n1. Loading pre-computed embeddings...")
-    embeddings_path = os.path.join(script_dir, '..', args.embeddings_file)
-    processed_path = os.path.join(script_dir, '..', args.processed_file)
+    # 1. Load cell type annotations
+    print("\n1. Loading cell type annotations...")
+    processed_path = resolve_path(args.processed_file, script_dir)
+    adata_processed = ad.read_h5ad(processed_path)
 
-    embeddings, cell_types, cell_names = load_precomputed_embeddings(embeddings_path, processed_path)
+    if 'celltype' in adata_processed.obs.columns:
+        cell_type_col = 'celltype'
+    elif 'louvain' in adata_processed.obs.columns:
+        cell_type_col = 'louvain'
+    else:
+        raise ValueError("No cell type column found in processed file")
 
-    print(f"  Loaded {len(embeddings)} cells")
-    print(f"  Embedding dim: {embeddings.shape[1]}")
-    print(f"  Cell types: {np.unique(cell_types)}")
+    cell_types = adata_processed.obs[cell_type_col].values
+    cell_names = list(adata_processed.obs_names)
 
-    # Identify source and target
     source_mask = cell_types == args.source_celltype
     target_mask = cell_types == args.target_celltype
 
@@ -356,17 +180,50 @@ def main():
     if target_mask.sum() == 0:
         raise ValueError(f"No cells found for '{args.target_celltype}'")
 
+    print(f"  Loaded {len(cell_names)} cells")
+    print(f"  Cell types: {np.unique(cell_types)}")
     print(f"  Source cells: {source_mask.sum()}")
     print(f"  Target cells: {target_mask.sum()}")
 
-    # Compute target centroid from pre-computed embeddings
-    target_embeddings = embeddings[target_mask]
-    target_centroid = torch.from_numpy(target_embeddings.mean(axis=0)).to(args.device)
+    del adata_processed
 
-    print(f"  Target centroid shape: {target_centroid.shape}")
+    # 2. Prepare objective targets
+    print("\n2. Preparing optimization targets...")
 
-    # 2. Load model
-    print("\n2. Loading AIDO.Cell model...")
+    target_centroid = None
+    target_expression = None
+    gene_weights = None
+
+    if args.objective == 'latent':
+        embeddings_path = resolve_path(args.embeddings_file, script_dir)
+        embeddings = load_precomputed_embeddings(embeddings_path, cell_names)
+        target_centroid = torch.from_numpy(embeddings[target_mask].mean(axis=0)).to(args.device)
+        print(f"  Target centroid shape: {target_centroid.shape}")
+        del embeddings
+
+    elif args.objective == 'expression':
+        logits_path = resolve_path(args.logits_file, script_dir)
+        adata_logits = ad.read_h5ad(logits_path)
+
+        # Align to cell_names ordering
+        logits_cell_indices = [adata_logits.obs_names.get_loc(name) for name in cell_names]
+        all_logits = torch.from_numpy(adata_logits.X[logits_cell_indices]).float()
+
+        target_expression = all_logits[target_mask].mean(dim=0).to(args.device)
+        print(f"  Target expression shape: {target_expression.shape}")
+
+        if args.gene_weight_mode == 'effect_size':
+            source_expression = all_logits[source_mask].mean(dim=0)
+            gene_weights = (target_expression.cpu() - source_expression).abs()
+            gene_weights = gene_weights.to(args.device)
+            print(f"  Gene weights: effect_size mode, top weight={gene_weights.max():.6f}")
+        else:
+            print(f"  Gene weights: uniform")
+
+        del adata_logits, all_logits
+
+    # 3. Load model
+    print("\n3. Loading AIDO.Cell model...")
     config = CellFoundationConfig.from_pretrained(args.model_name)
     model = CellFoundationForMaskedLM.from_pretrained(args.model_name, config=config)
     model = model.to(args.device)
@@ -381,14 +238,19 @@ def main():
 
     print("✓ Model loaded")
 
-    # 3. Load SAE
-    print("\n3. Loading SAE...")
+    # 4. Load SAE
+    print("\n4. Loading SAE...")
     sae = load_sae(args.sae_dir, args.device)
+
+    for param in sae.parameters():
+        param.requires_grad = False
+    sae.eval()
+
     print("✓ SAE loaded")
 
-    # 4. Load data for source cells
-    print("\n4. Loading source cell data...")
-    raw_path = os.path.join(script_dir, '..', args.data_file)
+    # 5. Load data for source cells
+    print("\n5. Loading source cell data...")
+    raw_path = resolve_path(args.data_file, script_dir)
 
     adata_raw = ad.read_h5ad(raw_path)
 
@@ -409,32 +271,19 @@ def main():
     n_batches_per_epoch = (adata_source.n_obs + args.batch_size - 1) // args.batch_size
     print(f"  Batches per epoch: {n_batches_per_epoch}")
 
-    # 5. Load annotated features
-    print("\n5. Loading annotated features...")
-
-    annotated_file = os.path.join(script_dir, '..', 'plots', 'sae', f'layer_{args.layer}', 'annotated_features.csv')
-    if not os.path.exists(annotated_file):
-        raise FileNotFoundError(f"Annotated features file not found at {annotated_file}")
-
-    annotated_df = pd.read_csv(annotated_file)
-
-    # Get mask for annotated features
-    annotated_mask = annotated_df['Annotated'].values.astype(bool)
-
-    print(f"  Total features: {len(annotated_mask)}")
-    print(f"  Annotated features: {annotated_mask.sum()}")
-
-    # Convert to tensor
+    # 6. Load annotated features
+    print("\n6. Loading annotated features...")
+    n_features = sae.latent_dim
+    annotated_mask = get_annotated_features(args.sae_dir, n_features)
     annotated_mask_tensor = torch.from_numpy(annotated_mask).to(args.device)
 
-    # 6. Initialize learnable alpha vector
-    print("\n6. Initializing learnable alpha vector...")
-    n_features = sae.latent_dim
+    # 7. Initialize learnable alpha vector and steering model
+    print("\n7. Initializing learnable alpha vector...")
 
-    # Create full alpha vector (fixed at 1.0, no gradients)
-    alpha_vector_full = torch.ones(n_features, device=args.device, requires_grad=False)
+    # Base alpha vector (fixed at 1.0, no gradients)
+    alpha_vector_base = torch.ones(n_features, device=args.device, requires_grad=False)
 
-    # Create learnable parameters only for annotated features
+    # Learnable parameters only for annotated features
     n_learnable = annotated_mask.sum()
     alpha_learnable = torch.ones(n_learnable, device=args.device, requires_grad=True)
 
@@ -442,24 +291,19 @@ def main():
     print(f"  Learnable features: {n_learnable}")
     print(f"  Fixed features: {n_features - n_learnable}")
 
-    # 7. Create steering model
-    print("\n7. Creating optimizable steering model...")
+    # Create initial full alpha vector
+    alpha_full_init = alpha_vector_base.clone()
+    alpha_full_init[annotated_mask_tensor] = alpha_learnable
 
-    # Convert attention mask to boolean
+    # Convert attention mask to boolean and tensor
     attn_mask_bool = attention_mask.astype(bool)
-
-    # Create attention mask tensor for batching
     attn_mask_tensor = torch.from_numpy(attention_mask).unsqueeze(0).to(args.device)
 
-    steering_model = OptimizableSteeringModel(
+    steering_model = SAESteeringModel(
         model=model,
         sae=sae,
-        alpha_vector_full=alpha_vector_full,
-        alpha_learnable=alpha_learnable,
-        annotated_mask=annotated_mask_tensor,
-        attention_mask=attn_mask_bool,
         layer_idx=args.layer,
-        device=args.device
+        alpha_vector=alpha_full_init,
     )
 
     # 8. Optimize
@@ -467,12 +311,12 @@ def main():
     optimizer = torch.optim.Adam([alpha_learnable], lr=args.lr)
 
     losses = []
-    distance_losses = []
+    objective_losses = []
     sparsity_losses = []
     non_zero_counts = []
 
     for epoch in range(args.num_epochs):
-        epoch_distance_loss = 0.0
+        epoch_objective_loss = 0.0
         epoch_sparsity_loss = 0.0
         n_batches = 0
 
@@ -499,40 +343,60 @@ def main():
 
             optimizer.zero_grad()
 
-            # Forward pass with steering
-            steered_embeddings = steering_model(batch_processed, batch_attn_mask)
+            # Construct differentiable alpha vector and update model
+            alpha_full = alpha_vector_base.clone()
+            alpha_full[annotated_mask_tensor] = alpha_learnable
+            steering_model.update_alpha_vector(alpha_full)
 
-            # Distance loss: mean per-cell distance to target centroid
-            distances = torch.norm(steered_embeddings - target_centroid, dim=1)
-            distance_loss = distances.mean()
+            # Forward pass
+            output = steering_model(
+                batch_processed, batch_attn_mask,
+                output_hidden_states=(args.objective == 'latent')
+            )
+
+            # Compute objective loss
+            if args.objective == 'latent':
+                last_hidden = output.hidden_states[-1][:, :-2, :]
+                cell_embeddings = last_hidden[:, attn_mask_bool, :].mean(dim=1)
+                distances = torch.norm(cell_embeddings - target_centroid, dim=1)
+                objective_loss = distances.mean()
+
+            elif args.objective == 'expression':
+                logits = output.logits[:, :-2, :].squeeze(-1)
+                logits_filtered = logits[:, attn_mask_bool]
+                diff = logits_filtered - target_expression
+                if gene_weights is not None:
+                    objective_loss = (diff ** 2 * gene_weights).sum(dim=1).mean()
+                else:
+                    objective_loss = (diff ** 2).mean()
 
             # Sparsity loss: L1 on (alpha - 1) to encourage alphas near 1 (no change)
             sparsity_loss = args.lambda_l1 * torch.abs(alpha_learnable - 1.0).sum()
 
             # Total loss
-            loss = distance_loss + sparsity_loss
+            loss = objective_loss + sparsity_loss
 
             # Backward
             loss.backward()
             optimizer.step()
 
-            epoch_distance_loss += distance_loss.item()
+            epoch_objective_loss += objective_loss.item()
             epoch_sparsity_loss += sparsity_loss.item()
             n_batches += 1
 
             # Update progress bar
             pbar.set_postfix({
                 'loss': f'{loss.item():.4f}',
-                'dist': f'{distance_loss.item():.4f}'
+                'obj': f'{objective_loss.item():.4f}'
             })
 
         # Average losses
-        epoch_distance_loss /= n_batches
+        epoch_objective_loss /= n_batches
         epoch_sparsity_loss /= n_batches
-        epoch_loss = epoch_distance_loss + epoch_sparsity_loss
+        epoch_loss = epoch_objective_loss + epoch_sparsity_loss
 
         losses.append(epoch_loss)
-        distance_losses.append(epoch_distance_loss)
+        objective_losses.append(epoch_objective_loss)
         sparsity_losses.append(epoch_sparsity_loss)
 
         # Hard threshold: set alphas close to 1.0 to exactly 1.0 (no steering)
@@ -546,7 +410,7 @@ def main():
         if (epoch + 1) % 10 == 0:
             print(f"  Epoch {epoch+1}/{args.num_epochs}: "
                   f"loss={epoch_loss:.4f}, "
-                  f"dist={epoch_distance_loss:.4f}, "
+                  f"obj={epoch_objective_loss:.4f}, "
                   f"l1={epoch_sparsity_loss:.4f}, "
                   f"non_identity={non_zero_count}")
 
@@ -556,7 +420,7 @@ def main():
     print("\n9. Analyzing learned alpha vector...")
 
     # Reconstruct full alpha vector
-    alpha_vector_full_final = alpha_vector_full.clone()
+    alpha_vector_full_final = alpha_vector_base.clone()
     alpha_vector_full_final[annotated_mask_tensor] = alpha_learnable
 
     alphas_np = alpha_vector_full_final.detach().cpu().numpy()
@@ -592,7 +456,7 @@ def main():
         'non_identity_features': non_identity_features,
         'non_identity_alphas': non_identity_alphas,
         'losses': losses,
-        'distance_losses': distance_losses,
+        'objective_losses': objective_losses,
         'sparsity_losses': sparsity_losses,
         'non_zero_counts': non_zero_counts,
         'args': vars(args)
@@ -601,6 +465,9 @@ def main():
     print(f"  Saved alpha vector to {output_file}")
 
     # Plot loss curves
+    obj_label = 'Distance Loss (to target centroid)' if args.objective == 'latent' \
+        else 'Expression Loss (weighted MSE)'
+
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
     axes[0, 0].plot(losses)
@@ -609,10 +476,10 @@ def main():
     axes[0, 0].set_title('Total Loss')
     axes[0, 0].grid(True, alpha=0.3)
 
-    axes[0, 1].plot(distance_losses)
+    axes[0, 1].plot(objective_losses)
     axes[0, 1].set_xlabel('Epoch')
-    axes[0, 1].set_ylabel('Distance Loss')
-    axes[0, 1].set_title('Distance Loss (to target centroid)')
+    axes[0, 1].set_ylabel('Objective Loss')
+    axes[0, 1].set_title(obj_label)
     axes[0, 1].grid(True, alpha=0.3)
 
     axes[1, 0].plot(sparsity_losses)
@@ -634,19 +501,16 @@ def main():
 
     print(f"  Saved loss curves to {loss_plot_path}")
 
-    # Plot alpha distribution
-    alpha_plot_path = os.path.join(args.output_dir, 'alpha_distribution.png')
-    plot_alpha_distribution(alpha_vector_full_final, alpha_plot_path)
-
     # Clean up
-    steering_model.remove_hooks()
+    steering_model.remove_hook()
 
     print("\n" + "="*70)
     print("OPTIMIZATION COMPLETE")
     print("="*70)
     print(f"\nResults saved to: {args.output_dir}")
+    print(f"Objective: {args.objective}")
     print(f"Non-identity features: {len(non_identity_features)}")
-    print(f"Final distance loss: {distance_losses[-1]:.4f}")
+    print(f"Final objective loss: {objective_losses[-1]:.4f}")
 
 
 if __name__ == "__main__":

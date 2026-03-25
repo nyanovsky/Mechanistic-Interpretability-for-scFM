@@ -19,43 +19,7 @@ from tqdm import tqdm
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils import TopKSAE, load_sae
-from utils.data_utils import get_expressed_genes
-
-
-def compute_participation_ratio(matrix, axis=1):
-    """Compute Participation Ratio (PR) for each row.
-
-    PR measures the effective number of dimensions that contribute to a distribution.
-    Higher PR = more dimensions participate (broader feature).
-    Lower PR = fewer dimensions participate (sparser feature).
-
-    Args:
-        matrix: [n_features, n_dims] array
-        axis: Axis along which to compute PR (default: 1, across columns)
-
-    Returns:
-        pr: [n_features] array of participation ratios
-    """
-    # Square the activations to get "energy"
-    energy = matrix ** 2
-
-    # Normalize to get probability distribution P_i for each feature
-    energy_sum = energy.sum(axis=axis, keepdims=True)
-
-    # Avoid division by zero for dead features
-    energy_sum[energy_sum == 0] = 1.0
-
-    probs = energy / energy_sum
-
-    # PR = 1 / Sum(P_i^2) (Inverse Participation Ratio)
-    ipr = (probs ** 2).sum(axis=axis)
-
-    # Handle dead features (ipr will be 0 if energy was 0)
-    pr = np.zeros_like(ipr)
-    mask = ipr > 0
-    pr[mask] = 1.0 / ipr[mask]
-
-    return pr
+from utils.data_utils import get_expressed_genes, compute_participation_ratio
 
 
 def compute_neuron_gene_activations_mean(h5_path, device, batch_size=8):

@@ -13,6 +13,8 @@ if _aido_path not in sys.path:
 from .sae_model import TopKSAE, TopKSAEWithBPre, load_sae
 from .data_utils import (
     load_gene_names, get_expressed_genes, get_expressed_genes_mask,
-    load_go_enrichment, load_feature_statistics, load_decoder_weights,
-    load_activation_matrices, load_celltype_correlations, get_device
+    get_annotated_features, load_go_enrichment, load_go_enrichment_detailed,
+    load_feature_statistics, load_feature_attribution_data,
+    load_decoder_weights, load_activation_matrices, load_celltype_correlations,
+    compute_participation_ratio, get_device
 )
