@@ -21,64 +21,8 @@ import matplotlib.pyplot as plt
 import torch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from utils.similarity import get_top_k_genes_per_feature
-from utils.data_utils import load_gene_names
-from interpretation.compute_feature_matrices import compute_participation_ratio
-
-
-def load_data(args):
-    """Load feature-gene matrix, alpha vector, gene names, and direction CSV."""
-    print("Loading feature-gene matrix...")
-    fg_matrix = np.load(args.feature_gene_matrix)
-    if fg_matrix.shape[0] != 5120:
-        fg_matrix = fg_matrix.T
-    n_features, n_genes = fg_matrix.shape
-    print(f"  Shape: {fg_matrix.shape} (features x genes)")
-
-    print("Loading alpha vector...")
-    alpha_data = torch.load(args.alpha_vector, map_location='cpu')
-    alpha = alpha_data['alpha_vector'].numpy()
-    print(f"  Non-identity features (|a-1| > 0.05): {(np.abs(alpha - 1) > 0.05).sum()}")
-
-    print("Loading direction CSV...")
-    df_direction = pd.read_csv(args.direction_csv)
-    print(f"  Genes in CSV: {len(df_direction)}")
-
-    print("Loading gene names...")
-    gene_names = load_gene_names(
-        raw_data_path=args.raw_data_file,
-        gene_names_file=args.gene_names_file
-    )
-    print(f"  Total genes: {len(gene_names)}")
-
-    return fg_matrix, alpha, df_direction, gene_names
-
-
-def compute_gene_feature_sets(fg_matrix, min_features=5, max_features=200):
-    """Compute top features per gene using gene-centric PR-adaptive thresholding.
-
-    Transposes the feature-gene matrix to (n_genes, n_features), computes PR
-    per gene, then uses the same adaptive thresholding as feature-gene sets.
-    """
-    gene_matrix = fg_matrix.T  # (n_genes, n_features)
-    n_genes, n_features = gene_matrix.shape
-
-    print("Computing gene-centric participation ratios...")
-    gene_pr = compute_participation_ratio(gene_matrix, axis=1)
-    print(f"  Gene PR range: [{gene_pr.min():.1f}, {gene_pr.max():.1f}], "
-          f"median: {np.median(gene_pr):.1f}")
-
-    print("Computing top features per gene (PR-adaptive)...")
-    feature_sets = get_top_k_genes_per_feature(
-        gene_matrix, gene_pr, pr_scale=1,
-        min_genes=min_features, max_genes=max_features
-    )
-
-    set_sizes = [len(s) for s in feature_sets]
-    print(f"  Feature set sizes: min={min(set_sizes)}, max={max(set_sizes)}, "
-          f"median={np.median(set_sizes):.0f}, mean={np.mean(set_sizes):.1f}")
-
-    return feature_sets, gene_pr
+from utils.data_utils import load_feature_attribution_data
+from utils.similarity import get_top_k_genes_per_feature, compute_gene_feature_sets
 
 
 def compute_attribution_metrics(df_direction, gene_names, feature_sets, gene_pr, alpha,
@@ -115,6 +59,10 @@ def compute_attribution_metrics(df_direction, gene_names, feature_sets, gene_pr,
         steered_act = sum(gene_activations[f] for f in feat_indices if steered_mask[f])
         weighted_steered_frac = steered_act / total_act if total_act > 0 else 0.0
 
+        # Per-gene steering strength: |alpha - 1| across top features
+        abs_alpha_devs = np.array([abs(alpha[f] - 1) for f in feat_indices])
+        max_abs_alpha_dev = abs_alpha_devs.max() if len(abs_alpha_devs) > 0 else 0.0
+
         records.append({
             'gene': gene,
             'gene_pr': gene_pr[g_idx],
@@ -122,6 +70,7 @@ def compute_attribution_metrics(df_direction, gene_names, feature_sets, gene_pr,
             'n_steered_features': n_steered,
             'steered_fraction': steered_frac,
             'weighted_steered_fraction': weighted_steered_frac,
+            'max_abs_alpha_deviation': max_abs_alpha_dev,
             'gap_fraction': row['gap_fraction'],
             'celltype_effect': row['celltype_effect'],
             'correct': row['correct'],
@@ -204,6 +153,26 @@ def plot_pr_vs_gap(df_attr, output_dir):
     print(f"  Saved: {path}")
 
 
+def plot_de_rank_vs_steering_strength(df_attr, output_dir):
+    """Scatter: genes ranked by |celltype_effect| vs mean/median |alpha-1| of their top features."""
+    df_sorted = df_attr.sort_values('celltype_effect', key=abs, ascending=False).reset_index(drop=True)
+    df_sorted['de_rank'] = np.arange(1, len(df_sorted) + 1)
+
+    fig, ax = plt.subplots(figsize=(6, 3.5))
+    ax.scatter(df_sorted['de_rank'], df_sorted['max_abs_alpha_deviation'],
+               s=3, alpha=0.3, color='steelblue')
+    ax.set_xlabel('Gene DE rank (1 = highest |effect|)', fontsize=10)
+    ax.set_ylabel('Max |alpha - 1| of top features', fontsize=10)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+    plt.tight_layout()
+    path = os.path.join(output_dir, 'de_rank_vs_steering_strength.pdf')
+    plt.savefig(path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"  Saved: {path}")
+
+
 def print_top_gene_details(df_attr, fg_matrix, alpha, gene_names, top_n=20):
     """Print detailed feature breakdown for top genes."""
     df_sorted = df_attr.sort_values('celltype_effect', key=abs, ascending=False)
@@ -257,14 +226,20 @@ def analyze_steered_features(fg_matrix, alpha, df_direction, gene_names, pr_path
         fg_matrix, pr_values, pr_scale=1, min_genes=10, max_genes=100
     )
 
-    # Build gene name -> gap fraction lookup from direction CSV
+    # Build gene name -> metrics lookup from direction CSV
+    # DE rank: genes ranked by descending |celltype_effect|, rank 1 = largest effect
+    df_ranked = df_direction.copy()
+    df_ranked['de_rank'] = df_ranked['celltype_effect'].abs().rank(ascending=False).astype(int)
+
     gap_lookup = {}
     correct_lookup = {}
     effect_lookup = {}
-    for _, row in df_direction.iterrows():
+    de_rank_lookup = {}
+    for _, row in df_ranked.iterrows():
         gap_lookup[row['gene']] = row['gap_fraction']
         correct_lookup[row['gene']] = row['correct']
         effect_lookup[row['gene']] = row['celltype_effect']
+        de_rank_lookup[row['gene']] = row['de_rank']
 
     # Per-feature analysis
     records = []
@@ -280,6 +255,7 @@ def analyze_steered_features(fg_matrix, alpha, df_direction, gene_names, pr_path
         gaps = [gap_lookup[g] for g in matched_genes]
         corrects = [correct_lookup[g] for g in matched_genes]
         effects = [effect_lookup[g] for g in matched_genes]
+        de_ranks = [de_rank_lookup[g] for g in matched_genes]
 
         records.append({
             'feature': f_idx,
@@ -291,6 +267,7 @@ def analyze_steered_features(fg_matrix, alpha, df_direction, gene_names, pr_path
             'mean_gap_fraction': np.mean(gaps),
             'pct_correct': np.mean(corrects) * 100,
             'median_abs_effect': np.median(np.abs(effects)),
+            'min_de_rank': np.min(de_ranks),
         })
 
     df_features = pd.DataFrame(records)
@@ -343,6 +320,33 @@ def analyze_steered_features(fg_matrix, alpha, df_direction, gene_names, pr_path
         plt.close()
         print(f"  Saved: {path}")
 
+    # Plot: features sorted by |alpha-1| vs median/mean DE rank of top genes
+    if output_dir and len(df_features) > 5:
+        df_sorted = df_features.sort_values('alpha_minus_1', key=abs, ascending=False).reset_index(drop=True)
+        n_total_genes = len(df_direction)
+
+        fig, ax = plt.subplots(figsize=(6, 3.5))
+        x = np.arange(len(df_sorted))
+        ax.scatter(x, df_sorted['min_de_rank'], s=15, alpha=0.7, color='steelblue')
+        ax.axhline(n_total_genes / 2, color='gray', linestyle='--', linewidth=0.8,
+                   alpha=0.5, label=f'Midpoint ({n_total_genes // 2})')
+        ax.set_xlabel('Feature (sorted by |alpha - 1|)', fontsize=10)
+        ax.set_ylabel('Best DE rank of top genes (1 = highest effect)', fontsize=10)
+        ax.legend(fontsize=7, framealpha=0.8)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
+        # Label top features
+        for i, row in df_sorted.head(5).iterrows():
+            ax.annotate(f"f{int(row['feature'])}", (i, row['min_de_rank']),
+                        fontsize=7, alpha=0.8, xytext=(5, 5), textcoords='offset points')
+
+        plt.tight_layout()
+        path = os.path.join(output_dir, 'steered_features_de_rank.pdf')
+        plt.savefig(path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"  Saved: {path}")
+
     return df_features
 
 
@@ -377,7 +381,10 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     # Step 1: Load data
-    fg_matrix, alpha, df_direction, gene_names = load_data(args)
+    fg_matrix, alpha, df_direction, gene_names = load_feature_attribution_data(
+        args.feature_gene_matrix, args.alpha_vector, args.direction_csv,
+        raw_data_path=args.raw_data_file, gene_names_file=args.gene_names_file
+    )
 
     # Step 2: Compute gene-centric PR and top features per gene
     feature_sets, gene_pr = compute_gene_feature_sets(fg_matrix)
@@ -421,6 +428,7 @@ def main():
     print("\nGenerating plots...")
     plot_comparison_boxplots(df_attr, args.top_n, args.output_dir)
     plot_pr_vs_gap(df_attr, args.output_dir)
+    plot_de_rank_vs_steering_strength(df_attr, args.output_dir)
 
     # Step 6: Detailed breakdown for top genes
     print_top_gene_details(df_attr, fg_matrix, alpha, gene_names, top_n=20)
