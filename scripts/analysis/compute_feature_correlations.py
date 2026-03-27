@@ -383,7 +383,7 @@ def main():
     if args.matrix == 'gene':
         print("\n[FILTER 2] Filtering to expressed genes...")
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        RAW_DATA_FILE = os.path.join(script_dir, "../../data/pbmc/pbmc3k_raw.h5ad")
+        RAW_DATA_FILE = "data/pbmc/pbmc3k_raw.h5ad"
         expressed_mask = get_expressed_genes_mask(
             RAW_DATA_FILE,
             min_mean_expr=0.01,

@@ -53,8 +53,8 @@ OUTPUT_DIR = f"{SAE_DIR}/interpretations_filter_zero_expressed"
 PLOT_DIR = f"../../plots/sae/layer_{args.layer}"
 
 # Static paths (don't depend on layer/SAE config)
-PROCESSED_DATA_FILE = "../../data/pbmc/pbmc3k_processed.h5ad"
-RAW_DATA_FILE = "../../data/pbmc/pbmc3k_raw.h5ad"
+PROCESSED_DATA_FILE = "data/pbmc/pbmc3k_processed.h5ad"
+RAW_DATA_FILE = "data/pbmc/pbmc3k_raw.h5ad"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 

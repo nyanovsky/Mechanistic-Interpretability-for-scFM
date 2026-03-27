@@ -378,7 +378,7 @@ def main():
     LATENT_DIM = INPUT_DIM * args.expansion
     BASE_DIR = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{args.layer}"
     ACTIVATIONS_FILE = f"{BASE_DIR}/layer{args.layer}_activations.h5"
-    RAW_DATA_FILE = "../../data/pbmc/pbmc3k_raw.h5ad"
+    RAW_DATA_FILE = "data/pbmc/pbmc3k_raw.h5ad"
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
     if args.raw_neurons:

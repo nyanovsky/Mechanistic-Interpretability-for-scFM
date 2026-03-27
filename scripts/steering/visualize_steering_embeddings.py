@@ -16,8 +16,8 @@ import scanpy as sc
 from scipy import stats
 
 # Paths
-PROCESSED_DATA = "../../data/pbmc/pbmc3k_processed.h5ad"
-PRE_STEERED_EMBEDDINGS = "../../data/pbmc/aido_cell_pre_steer_embeddings.pt"
+PROCESSED_DATA = "data/pbmc/pbmc3k_processed.h5ad"
+PRE_STEERED_EMBEDDINGS = "data/pbmc/aido_cell_pre_steer_embeddings.pt"
 
 
 def load_cell_types(processed_path):
@@ -497,9 +497,8 @@ def main():
     args = parser.parse_args()
 
     # Setup paths
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    processed_path = os.path.join(script_dir, PROCESSED_DATA)
-    pre_embed_path = os.path.join(script_dir, PRE_STEERED_EMBEDDINGS)
+    processed_path = PROCESSED_DATA
+    pre_embed_path = PRE_STEERED_EMBEDDINGS
 
     output_dir = f"../../plots/sae/layer_12/steering_analysis/{args.experiment_name}/embeddings"
     os.makedirs(output_dir, exist_ok=True)
@@ -550,7 +549,7 @@ def main():
 
     # Load raw data to get cell names for steered cells
     print("\n3b. Loading raw data to map cell indices...")
-    raw_data_path = os.path.join(script_dir, "../../data/pbmc/pbmc3k_raw.h5ad")
+    raw_data_path = "data/pbmc/pbmc3k_raw.h5ad"
     adata_raw = ad.read_h5ad(raw_data_path)
     steered_cell_names = adata_raw.obs_names[cell_indices_steered]
     print(f"   Raw data cells: {adata_raw.n_obs}")

@@ -305,7 +305,7 @@ def main():
 
     if args.raw_data_file is None and args.gene_names_file is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        args.raw_data_file = os.path.join(script_dir, '../../data/pbmc/pbmc3k_raw.h5ad')
+        args.raw_data_file = 'data/pbmc/pbmc3k_raw.h5ad'
 
     if args.output_dir is None:
         args.output_dir = args.results_dir

@@ -27,7 +27,7 @@ def main():
     BASE_DIR = f"/biodata/nyanovsky/datasets/pbmc3k/layer_{LAYER}"
     SAE_DIR = f"{BASE_DIR}/sae_k_32_5120"
     ACTIVATIONS_FILE = f"{BASE_DIR}/layer{LAYER}_activations.h5"
-    RAW_DATA_FILE = "../../data/pbmc/pbmc3k_raw.h5ad"
+    RAW_DATA_FILE = "data/pbmc/pbmc3k_raw.h5ad"
     OUTPUT_DIR = "../../plots/sae/layer_12/reconstruction_error"
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'

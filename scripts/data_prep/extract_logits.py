@@ -15,8 +15,8 @@ from aido_cell.utils import align_adata, preprocess_counts
 
 
 MODEL_NAME = "genbio-ai/AIDO.Cell-100M"
-RAW_DATA_FILE = "../../data/pbmc/pbmc3k_raw.h5ad"
-PROCESSED_DATA_FILE = "../../data/pbmc/pbmc3k_processed.h5ad"
+RAW_DATA_FILE = "data/pbmc/pbmc3k_raw.h5ad"
+PROCESSED_DATA_FILE = "data/pbmc/pbmc3k_processed.h5ad"
 OUTPUT_DIR = "/biodata/nyanovsky/datasets/pbmc3k"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 6  # Small due to memory constraints

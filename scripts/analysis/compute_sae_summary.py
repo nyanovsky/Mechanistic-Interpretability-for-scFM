@@ -26,8 +26,7 @@ from utils.data_utils import load_go_enrichment, get_expressed_genes_mask
 from utils.go_utils import load_go_dag_and_associations, compute_all_go_dag_ics, compute_go_term_overlap
 from utils.similarity import get_top_k_genes_per_feature
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-RAW_DATA_FILE = os.path.join(SCRIPT_DIR, "../../data/pbmc/pbmc3k_raw.h5ad")
+RAW_DATA_FILE = "data/pbmc/pbmc3k_raw.h5ad"
 
 
 def parse_args():

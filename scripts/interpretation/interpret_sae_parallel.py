@@ -280,20 +280,14 @@ def main():
             cell_types = pd.Series(f.read().strip().split('\n'))
         print(f"  Loaded {len(cell_types)} cell types from {CELLTYPE_FILE}")
     elif RAW_DATA_FILE is not None:
-        raw_path = RAW_DATA_FILE
-        if not os.path.isabs(raw_path):
-            raw_path = os.path.join(script_dir, raw_path)
-        adata_raw = ad.read_h5ad(raw_path)
+        adata_raw = ad.read_h5ad(RAW_DATA_FILE)
 
         if CELLTYPE_COL in adata_raw.obs.columns:
             print(f"  Found '{CELLTYPE_COL}' column in raw data")
             cell_types = adata_raw.obs[CELLTYPE_COL]
 
     if cell_types is None and PROCESSED_DATA_FILE is not None:
-        processed_path = PROCESSED_DATA_FILE
-        if not os.path.isabs(processed_path):
-            processed_path = os.path.join(script_dir, processed_path)
-        adata_processed = ad.read_h5ad(processed_path)
+        adata_processed = ad.read_h5ad(PROCESSED_DATA_FILE)
         if CELLTYPE_COL in adata_processed.obs.columns:
             cell_types = adata_processed.obs[CELLTYPE_COL]
         else:

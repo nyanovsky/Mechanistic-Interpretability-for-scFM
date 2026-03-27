@@ -124,7 +124,7 @@ def main():
     parser.add_argument('--top_n', type=int, default=100, help='Number of top genes to inspect')
     parser.add_argument('--output_dir', required=True, help='Output directory')
     parser.add_argument('--raw_data_file', default=None,
-                        help='Path to raw h5ad (for expressed genes background). Defaults to ../../data/pbmc/pbmc3k_raw.h5ad')
+                        help='Path to raw h5ad (for expressed genes background). Defaults to data/pbmc/pbmc3k_raw.h5ad')
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -163,7 +163,7 @@ def main():
     raw_data_path = args.raw_data_file
     if raw_data_path is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        raw_data_path = os.path.join(script_dir, '../../data/pbmc/pbmc3k_raw.h5ad')
+        raw_data_path = 'data/pbmc/pbmc3k_raw.h5ad'
     _, expressed_names, _ = get_expressed_genes(raw_data_path)
     run_go_enrichment(top_genes, args.output_dir, background=expressed_names,
                       identifier=f'top_{args.top_n}_by_effect')

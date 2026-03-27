@@ -360,7 +360,7 @@ def main():
     parser.add_argument('--direction_csv', required=True,
                         help='Path to direction_intersection_DE.csv')
     parser.add_argument('--raw_data_file', default=None,
-                        help='Path to raw h5ad (for gene names). Defaults to ../../data/pbmc/pbmc3k_raw.h5ad')
+                        help='Path to raw h5ad (for gene names). Defaults to data/pbmc/pbmc3k_raw.h5ad')
     parser.add_argument('--gene_names_file', default=None,
                         help='Path to pre-computed gene names text file (alternative to raw_data_file)')
     parser.add_argument('--output_dir', required=True,
@@ -376,7 +376,7 @@ def main():
 
     if args.raw_data_file is None and args.gene_names_file is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        args.raw_data_file = os.path.join(script_dir, '../../data/pbmc/pbmc3k_raw.h5ad')
+        args.raw_data_file = 'data/pbmc/pbmc3k_raw.h5ad'
 
     os.makedirs(args.output_dir, exist_ok=True)
 

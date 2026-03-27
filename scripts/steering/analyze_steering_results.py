@@ -23,8 +23,8 @@ from utils.go_utils import run_go_enrichment
 from aido_cell.utils import align_adata
 
 # --- Constants ---
-RAW_DATA_FILE = "../../data/pbmc/pbmc3k_raw.h5ad"
-PROCESSED_DATA_FILE = "../../data/pbmc/pbmc3k_processed.h5ad"
+RAW_DATA_FILE = "data/pbmc/pbmc3k_raw.h5ad"
+PROCESSED_DATA_FILE = "data/pbmc/pbmc3k_processed.h5ad"
 
 
 # --- Processing and Analysis Functions ---
@@ -141,9 +141,8 @@ def main():
     
     # 1. Load data and filter cells
     print("Loading data and metadata...")
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    raw_path = os.path.join(script_dir, RAW_DATA_FILE)
-    processed_path = os.path.join(script_dir, PROCESSED_DATA_FILE)
+    raw_path = RAW_DATA_FILE
+    processed_path = PROCESSED_DATA_FILE
 
     adata_processed = ad.read_h5ad(processed_path)
     adata_raw = ad.read_h5ad(raw_path)

@@ -36,11 +36,9 @@ from aido_cell.models.modeling_cellfoundation import CellFoundationForMaskedLM
 from aido_cell.utils import align_adata, preprocess_counts
 
 
-def resolve_path(path, script_dir):
-    """Resolve path: absolute paths pass through, relative paths resolve from project root."""
-    if os.path.isabs(path):
-        return path
-    return os.path.join(script_dir, '..', '..', path)
+def resolve_path(path, script_dir=None):
+    """Resolve path: absolute paths pass through, relative paths resolve from cwd (repo root)."""
+    return path
 
 
 def load_precomputed_embeddings(embeddings_path, cell_names):

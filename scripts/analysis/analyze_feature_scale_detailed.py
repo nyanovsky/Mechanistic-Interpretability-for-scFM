@@ -51,7 +51,7 @@ def main():
     base_dir = f"/biodata/nyanovsky/datasets/{args.dataset}/layer_{args.layer}/sae_k_32_{latent_dim}{SAE_SUFFIX}"
     pooling = "custom_pooling" if args.pooling == "custom" else "filter_zero_expressed"
     interp_dir = f"{base_dir}/interpretations_{pooling}"
-    raw_data_path = os.path.join(os.path.dirname(__file__), "../../data/pbmc/pbmc3k_raw.h5ad")
+    raw_data_path = "data/pbmc/pbmc3k_raw.h5ad"
     
     print(f"Analyzing Feature Scale & Peak Gene Activation for Layer {args.layer}...")
 

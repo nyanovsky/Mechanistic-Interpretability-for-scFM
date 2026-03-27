@@ -299,7 +299,7 @@ def main():
     parser.add_argument('--baseline_file', required=True,
                         help='Path to baseline logits h5ad')
     parser.add_argument('--raw_data_file', default=None,
-                        help='Path to raw h5ad (for expression mask). Defaults to ../../data/pbmc/pbmc3k_raw.h5ad')
+                        help='Path to raw h5ad (for expression mask). Defaults to data/pbmc/pbmc3k_raw.h5ad')
     parser.add_argument('--output_dir', required=True,
                         help='Output directory for plots and CSVs')
     parser.add_argument('--source_celltype', default='CD4 T cells', help='Source cell type')
@@ -308,7 +308,7 @@ def main():
 
     if args.raw_data_file is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        args.raw_data_file = os.path.join(script_dir, '../../data/pbmc/pbmc3k_raw.h5ad')
+        args.raw_data_file = 'data/pbmc/pbmc3k_raw.h5ad'
 
     os.makedirs(args.output_dir, exist_ok=True)
 
