@@ -18,10 +18,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
-from scipy.stats import ttest_ind, binomtest
+from scipy.stats import binomtest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from utils.data_utils import get_expressed_genes_mask, compute_de_genes
+from utils.data_utils import get_expressed_genes_mask, compute_de_genes, compute_independent_de
 
 import anndata as ad
 from aido_cell.utils import align_adata
@@ -80,38 +80,6 @@ def load_data(args):
     print(f"  Genes: {len(gene_names)}, Expressed: {expr_mask.sum()}")
 
     return baseline_source, baseline_target, steered_source, gene_names, expr_mask
-
-
-def compute_independent_de(logits_a, logits_b, gene_names, top_n=100):
-    """Compute DE genes using independent t-test (for unpaired cell populations).
-
-    Same interface as compute_de_genes but uses ttest_ind instead of ttest_rel.
-    """
-    t_stats, p_vals = ttest_ind(logits_a, logits_b, axis=0)
-
-    t_stats = np.nan_to_num(t_stats)
-    p_vals = np.nan_to_num(p_vals, nan=1.0)
-
-    mean_diff = logits_a.mean(axis=0) - logits_b.mean(axis=0)
-
-    # Bonferroni correction
-    p_thresh = 0.05 / len(gene_names)
-    sig_mask = (np.abs(t_stats) > 0) & (p_vals < p_thresh)
-
-    sig_indices = np.where(sig_mask)[0]
-    sig_sorted = sig_indices[np.argsort(mean_diff[sig_indices])[::-1]]
-
-    top_up_genes = gene_names[sig_sorted[:top_n]].tolist() if len(sig_sorted) >= top_n else gene_names[sig_sorted].tolist()
-    top_down_genes = gene_names[sig_sorted[-top_n:]].tolist()[::-1] if len(sig_sorted) >= top_n else []
-
-    stats_dict = {
-        't_stats': t_stats,
-        'p_vals': p_vals,
-        'mean_diff': mean_diff,
-        'sig_mask': sig_mask,
-        'sig_sorted_indices': sig_sorted,
-    }
-    return top_up_genes, top_down_genes, stats_dict
 
 
 def compute_direction_metrics(baseline_source, baseline_target, steered_source, gene_mask):

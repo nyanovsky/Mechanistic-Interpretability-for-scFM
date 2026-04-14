@@ -263,6 +263,40 @@ def compute_de_genes(logits_a, logits_b, gene_names, top_n=100):
     return top_up_genes, top_down_genes, stats_dict
 
 
+def compute_independent_de(logits_a, logits_b, gene_names, top_n=100):
+    """Compute DE genes using independent t-test (for unpaired cell populations).
+
+    Same interface as compute_de_genes but uses ttest_ind instead of ttest_rel.
+    """
+    from scipy.stats import ttest_ind
+
+    t_stats, p_vals = ttest_ind(logits_a, logits_b, axis=0)
+
+    t_stats = np.nan_to_num(t_stats)
+    p_vals = np.nan_to_num(p_vals, nan=1.0)
+
+    mean_diff = logits_a.mean(axis=0) - logits_b.mean(axis=0)
+
+    # Bonferroni correction
+    p_thresh = 0.05 / len(gene_names)
+    sig_mask = (np.abs(t_stats) > 0) & (p_vals < p_thresh)
+
+    sig_indices = np.where(sig_mask)[0]
+    sig_sorted = sig_indices[np.argsort(mean_diff[sig_indices])[::-1]]
+
+    top_up_genes = gene_names[sig_sorted[:top_n]].tolist() if len(sig_sorted) >= top_n else gene_names[sig_sorted].tolist()
+    top_down_genes = gene_names[sig_sorted[-top_n:]].tolist()[::-1] if len(sig_sorted) >= top_n else []
+
+    stats_dict = {
+        't_stats': t_stats,
+        'p_vals': p_vals,
+        'mean_diff': mean_diff,
+        'sig_mask': sig_mask,
+        'sig_sorted_indices': sig_sorted,
+    }
+    return top_up_genes, top_down_genes, stats_dict
+
+
 def get_expressed_genes(raw_data_path=None, min_mean_expr=0.01, min_pct_cells=0.5,
                         gene_names_file=None, expressed_mask_file=None):
     """Return indices, names, and mask for genes with sufficient expression.
@@ -373,16 +407,21 @@ def load_feature_attribution_data(fg_matrix_path, alpha_path, direction_csv_path
     Returns:
         tuple: (fg_matrix, alpha, df_direction, gene_names)
     """
-    print("Loading feature-gene matrix...")
-    fg_matrix = np.load(fg_matrix_path)
-    if fg_matrix.shape[0] != 5120:
-        fg_matrix = fg_matrix.T
-    print(f"  Shape: {fg_matrix.shape} (features x genes)")
-
     print("Loading alpha vector...")
     alpha_data = torch.load(alpha_path, map_location='cpu')
     alpha = alpha_data['alpha_vector'].numpy()
+    n_features = len(alpha)
     print(f"  Non-identity features (|a-1| > 0.05): {(np.abs(alpha - 1) > 0.05).sum()}")
+
+    print("Loading feature-gene matrix...")
+    fg_matrix = np.load(fg_matrix_path)
+    if fg_matrix.shape[0] != n_features:
+        fg_matrix = fg_matrix.T
+    assert fg_matrix.shape[0] == n_features, (
+        f"Feature-gene matrix dimension {fg_matrix.shape} doesn't match "
+        f"alpha vector length {n_features}"
+    )
+    print(f"  Shape: {fg_matrix.shape} (features x genes)")
 
     print("Loading direction CSV...")
     df_direction = pd.read_csv(direction_csv_path)
@@ -483,8 +522,8 @@ def load_feature_statistics(interpretation_dir: str):
     feature_gene_matrix = np.load(feature_gene_path)
     print(f"Loaded gene-feature matrix with shape: {feature_gene_matrix.shape}")
 
-    # Handle shape: want (n_features, n_genes)
-    if feature_gene_matrix.shape[0] != 5120:
+    # Handle shape: want (n_features, n_genes). Genes (~17-20k) always outnumber features.
+    if feature_gene_matrix.shape[0] > feature_gene_matrix.shape[1]:
         print("Detected shape (n_genes, n_features), transposing...")
         feature_gene_matrix = feature_gene_matrix.T
 

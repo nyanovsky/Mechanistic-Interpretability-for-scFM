@@ -15,7 +15,7 @@ Example:
         --data_file data/pbmc/pbmc3k_raw.h5ad \
         --objective expression \
         --logits_file data/pbmc/pbmc3k_logits.h5ad \
-        --gene_weight_mode effect_size
+        --top_n_degs 100
 """
 
 import os
@@ -84,9 +84,9 @@ def main():
                        help='Optimization objective: latent (embedding L2) or expression (logit MSE)')
     parser.add_argument('--logits_file', type=str, default=None,
                        help='Path to pre-computed logits .h5ad (required for expression objective)')
-    parser.add_argument('--gene_weight_mode', type=str, default='uniform',
-                       choices=['uniform', 'effect_size'],
-                       help='Gene weighting for expression objective')
+    parser.add_argument('--top_n_degs', type=int, default=None,
+                       help='Restrict expression objective to top N DEGs by |logFC|. '
+                            'Genes outside top N get zero weight.')
 
     # Data paths
     parser.add_argument('--data_file', type=str, required=True,
@@ -148,7 +148,7 @@ def main():
     print(f"Target: {args.target_celltype}")
     print(f"Objective: {args.objective}")
     if args.objective == 'expression':
-        print(f"Gene weighting: {args.gene_weight_mode}")
+        print(f"Top-N DEGs filter: {args.top_n_degs or 'all'}")
     print(f"Layer: {args.layer}")
     print(f"Learning rate: {args.lr}")
     print(f"L1 lambda: {args.lambda_l1}")
@@ -190,7 +190,6 @@ def main():
 
     target_centroid = None
     target_expression = None
-    gene_weights = None
 
     if args.objective == 'latent':
         embeddings_path = resolve_path(args.embeddings_file, script_dir)
@@ -210,13 +209,19 @@ def main():
         target_expression = all_logits[target_mask].mean(dim=0).to(args.device)
         print(f"  Target expression shape: {target_expression.shape}")
 
-        if args.gene_weight_mode == 'effect_size':
-            source_expression = all_logits[source_mask].mean(dim=0)
-            gene_weights = (target_expression.cpu() - source_expression).abs()
-            gene_weights = gene_weights.to(args.device)
-            print(f"  Gene weights: effect_size mode, top weight={gene_weights.max():.6f}")
-        else:
-            print(f"  Gene weights: uniform")
+        source_expression = all_logits[source_mask].mean(dim=0)
+        gene_weights = (target_expression.cpu() - source_expression).abs()
+        gene_weights = gene_weights.to(args.device)
+        print(f"  Gene weights: effect_size, top weight={gene_weights.max():.6f}")
+
+        if args.top_n_degs is not None:
+            logfc = (target_expression.cpu() - source_expression).abs()
+            _, top_indices = logfc.topk(args.top_n_degs)
+            mask = torch.zeros_like(gene_weights)
+            mask[top_indices] = 1.0
+            gene_weights = gene_weights * mask
+            n_nonzero = (gene_weights > 0).sum().item()
+            print(f"  Top-N DEG filter: keeping {n_nonzero} genes, zeroed {len(gene_weights) - n_nonzero}")
 
         del adata_logits, all_logits
 
@@ -363,10 +368,7 @@ def main():
                 logits = output.logits[:, :-2, :].squeeze(-1)
                 logits_filtered = logits[:, attn_mask_bool]
                 diff = logits_filtered - target_expression
-                if gene_weights is not None:
-                    objective_loss = (diff ** 2 * gene_weights).sum(dim=1).mean()
-                else:
-                    objective_loss = (diff ** 2).mean()
+                objective_loss = (diff ** 2 * gene_weights).sum(dim=1).mean()
 
             # Sparsity loss: L1 on (alpha - 1) to encourage alphas near 1 (no change)
             sparsity_loss = args.lambda_l1 * torch.abs(alpha_learnable - 1.0).sum()
