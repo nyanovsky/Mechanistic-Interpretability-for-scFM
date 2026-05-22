@@ -401,16 +401,26 @@ def plot_entanglement_sweep(sweep_results, output_dir):
         axes = [axes]
 
     for ax, (label, df) in zip(axes, sweep_results):
-        values = df['entanglement_ratio']
-        n_entangled = ((df['n_up_degs'] > 0) & (df['n_down_degs'] > 0)).sum()
-        pct = 100 * n_entangled / len(df)
+        has_degs = df[(df['n_up_degs'] > 0) | (df['n_down_degs'] > 0)]
+        values = has_degs['entanglement_ratio']
+        n_total = len(df)
+        n_active = len(has_degs)
+        n_no_overlap = n_total - n_active
+        n_entangled = ((has_degs['n_up_degs'] > 0) & (has_degs['n_down_degs'] > 0)).sum()
+        pct_entangled = 100 * n_entangled / max(n_active, 1)
+        pct_no_overlap = 100 * n_no_overlap / n_total
 
         ax.hist(values, bins=20, edgecolor='black', alpha=0.7)
-        ax.axvline(values.median(), color='red', linestyle='--',
-                   label=f'Median: {values.median():.2f}')
+        if len(values) > 0:
+            ax.axvline(values.median(), color='red', linestyle='--',
+                       label=f'Median: {values.median():.2f}')
         ax.set_xlabel('Entanglement ratio')
         ax.set_ylabel('Count')
-        ax.set_title(f'{label}\n({pct:.0f}% entangled)')
+        ax.set_title(
+            f'{label} ({n_active}/{n_total} with DEG overlap)\n'
+            f'{pct_entangled:.0f}% entangled | '
+            f'{n_no_overlap} no overlap ({pct_no_overlap:.0f}%) excluded',
+            fontsize=9)
         ax.legend(fontsize=8)
 
     plt.tight_layout()
@@ -518,7 +528,6 @@ def print_summary(label, df):
               f"median: {entangled['entanglement_ratio'].median():.3f}")
 
     # Offensive vs defensive breakdown
-    de_frac = df['de_fraction']
     has_degs = df[(df['n_up_degs'] > 0) | (df['n_down_degs'] > 0)]
     de_frac_active = has_degs['de_fraction']
     n_no_degs = len(df) - len(has_degs)
