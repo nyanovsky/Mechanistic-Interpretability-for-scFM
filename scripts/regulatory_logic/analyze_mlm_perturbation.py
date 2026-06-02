@@ -242,6 +242,7 @@ def plot_per_key(df, output_dir):
     for (bucket, key), sub in df.groupby(['bucket', 'key']):
         sub = sub.sort_values('dose').reset_index(drop=True)
         readout = sub['readout_gene'].iloc[0]
+        perturb = sub['perturb_gene'].iloc[0]
         gap = sub['celltype_gap'].iloc[0]
 
         fig, axes = plt.subplots(1, 2, figsize=(max(10, 1.6 * len(sub)), 4),
@@ -290,7 +291,7 @@ def plot_per_key(df, output_dir):
         axB.set_title('(B) vs in-experiment dose=0')
         axB.grid(axis='y', alpha=0.3)
 
-        title = f"{bucket} :: {key}  →  {readout}"
+        title = f"{bucket} :: {perturb}  →  {readout}"
         if not np.isnan(gap):
             title += f"   (celltype gap CD8−CD4 = {gap:+.3f})"
         fig.suptitle(title)
