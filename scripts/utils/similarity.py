@@ -192,6 +192,73 @@ def compute_set_based_similarities(gene_sets, metric='jaccard'):
     return similarities
 
 
+def gene_set_pairwise_corr(expr_matrix, gene_indices):
+    """Pairwise Pearson correlations among a set of genes across cells.
+
+    Genes with zero variance (constant expression) are dropped first, since
+    their correlation is undefined.
+
+    Args:
+        expr_matrix: [n_cells, n_genes] expression array (e.g. log1p-normalized)
+        gene_indices: iterable of column indices selecting the gene set
+
+    Returns:
+        tuple: (corrs, n_used)
+            corrs: 1D array of upper-triangle pairwise Pearson r (empty if <2 usable genes)
+            n_used: number of nonzero-variance genes actually used
+    """
+    idx = np.asarray(sorted(set(int(i) for i in gene_indices)), dtype=int)
+    if idx.size < 2:
+        return np.array([]), int(idx.size)
+
+    sub = expr_matrix[:, idx]
+    # Drop zero-variance genes (constant across cells)
+    nonzero_var = sub.std(axis=0) > 0
+    sub = sub[:, nonzero_var]
+    n_used = int(sub.shape[1])
+    if n_used < 2:
+        return np.array([]), n_used
+
+    corr = np.corrcoef(sub, rowvar=False)
+    corrs = corr[np.triu_indices(n_used, k=1)]
+    return corrs[~np.isnan(corrs)], n_used
+
+
+def sample_null_coexpression(expr_matrix, set_size, candidate_indices, n_sets=50, rng=None):
+    """Pooled pairwise correlations from random matched-size gene sets.
+
+    Draws ``n_sets`` random gene sets of ``set_size`` genes (without replacement
+    within each set) from ``candidate_indices`` and pools their pairwise Pearson
+    correlations into a single null distribution.
+
+    Args:
+        expr_matrix: [n_cells, n_genes] expression array
+        set_size: number of genes per random set (matched to the real set)
+        candidate_indices: pool of gene indices to sample from (e.g. expressed genes)
+        n_sets: number of random sets to pool
+        rng: optional np.random.Generator for reproducibility
+
+    Returns:
+        1D array of pooled pairwise Pearson r (empty if set_size < 2)
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    candidates = np.asarray(list(candidate_indices), dtype=int)
+    k = int(min(set_size, candidates.size))
+    if k < 2:
+        return np.array([])
+
+    pooled = []
+    for _ in range(n_sets):
+        draw = rng.choice(candidates, size=k, replace=False)
+        corrs, _ = gene_set_pairwise_corr(expr_matrix, draw)
+        if corrs.size:
+            pooled.append(corrs)
+
+    return np.concatenate(pooled) if pooled else np.array([])
+
+
 def compute_pairwise_correlations(feature_matrix, metric='pearson', pr_values=None,
                                    pr_scale=0.6, min_genes=10, max_genes=100):
     """Compute pairwise correlations/similarities between features.
