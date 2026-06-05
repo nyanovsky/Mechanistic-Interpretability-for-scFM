@@ -88,14 +88,17 @@ def characterize_intersection(tf_name, feature_id, feature_gene_matrix, gene_nam
     regulon_targets = set(regulon['target'])
     regulon_weight = dict(zip(regulon['target'], regulon['weight']))
 
-    # 2. Compute feature's gene set
-    pr_values = compute_participation_ratio(feature_gene_matrix)
+    # 2. Compute feature's gene set (over expressed genes only, then map the
+    #    expressed-space indices back to full-gene indices for downstream use)
+    expr_indices = np.where(expr_mask)[0]
+    fg_expr = feature_gene_matrix[:, expr_mask]
+    pr_values = compute_participation_ratio(fg_expr)
     feature_gene_sets = get_top_k_genes_per_feature(
-        feature_gene_matrix, pr_values,
+        fg_expr, pr_values,
         pr_scale=pr_scale, min_genes=min_genes, max_genes=max_genes
     )
-    feature_gene_indices = feature_gene_sets[feature_id]
-    feature_gene_names = set(gene_names[list(feature_gene_indices)])
+    feature_gene_indices = expr_indices[list(feature_gene_sets[feature_id])]
+    feature_gene_names = set(gene_names[feature_gene_indices])
 
     # 3. Data-driven TF/feedback identification
     all_tfs = get_all_tfs(net)

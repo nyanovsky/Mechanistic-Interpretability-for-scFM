@@ -11,8 +11,10 @@ Analyze results from SAE steering experiments.
 
 import os
 import sys
+import json
 import argparse
 import numpy as np
+import pandas as pd
 import anndata as ad
 import matplotlib.pyplot as plt
 import torch
@@ -69,7 +71,75 @@ def analyze_de_paired(logits_cond, logits_ref, gene_names, expr_mask, label, go_
     if top_down_genes:
         run_go_enrichment(top_down_genes, go_output_dir, background=background, identifier=f"Down_{label}")
 
-    return top_up_genes, top_down_genes
+    # de_stats arrays are indexed over the expressed-gene subset (names_expr)
+    de_stats['names_expr'] = names_expr
+    return top_up_genes, top_down_genes, de_stats
+
+
+def save_de_genes(de_stats, label, out_dir):
+    """Save the ranked significant DE genes (with logFC) for later co-expression analysis.
+
+    Writes de_genes_{label}.csv with columns gene, logFC, abs_logFC, p_value, direction,
+    sorted by signed logFC (most up-regulated first). This is the durable artifact consumed
+    by analyze_gene_coexpression.py, so trimming the DE set never re-runs DE or GO.
+    """
+    names_expr = de_stats['names_expr']
+    sig_sorted = de_stats['sig_sorted_indices']
+    if len(sig_sorted) == 0:
+        print(f"  No significant DE genes to save for {label}")
+        return
+
+    mean_diff = de_stats['mean_diff']
+    p_vals = de_stats['p_vals']
+    logfc = mean_diff[sig_sorted]
+    df = pd.DataFrame({
+        'gene': np.asarray(names_expr)[sig_sorted],
+        'logFC': logfc,
+        'abs_logFC': np.abs(logfc),
+        'p_value': p_vals[sig_sorted],
+        'direction': np.where(logfc > 0, 'up', 'down'),
+    })
+    out_path = os.path.join(out_dir, f"de_genes_{label}.csv")
+    df.to_csv(out_path, index=False)
+    print(f"  Saved {len(df)} DE genes to {out_path}")
+
+
+def plot_de_logfc_decay(de_stats, label, k, out_dir):
+    """Plot signed logFC decay over DE-gene rank, marking the feature's PR (k).
+
+    Two panels (up genes: logFC descending; down genes: |logFC| descending), each with a
+    vertical line at x = k so the user can compare how far the DE effect extends relative to
+    the feature's top-PR gene count and pick a --n-de-top trim. Skipped if k is None.
+    """
+    if k is None:
+        return
+
+    mean_diff = de_stats['mean_diff']
+    sig_sorted = de_stats['sig_sorted_indices']
+    if len(sig_sorted) == 0:
+        print(f"  No significant DE genes to plot for {label}")
+        return
+
+    logfc = mean_diff[sig_sorted]
+    up = np.sort(logfc[logfc > 0])[::-1]
+    down = np.sort(np.abs(logfc[logfc < 0]))[::-1]
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    for ax, vals, title in [(axes[0], up, 'Up genes'), (axes[1], down, 'Down genes (|logFC|)')]:
+        ax.plot(range(1, len(vals) + 1), vals, marker='.', linewidth=1)
+        ax.axvline(k, color='red', linestyle='--', label=f'feature PR (k={k})')
+        ax.set_xlabel('DE gene rank')
+        ax.set_ylabel('|logFC|' if 'Down' in title else 'logFC')
+        ax.set_title(f"{title} ({len(vals)} sig)")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+    fig.suptitle(f"DE logFC decay — {label}")
+    plt.tight_layout()
+    out_path = os.path.join(out_dir, f"de_logfc_decay_{label}.png")
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+    print(f"  Saved logFC decay plot to {out_path}")
 
 def plot_trajectories_side_by_side(means_dict, gene_names, top_up, top_down, label, output_dir):
     """
@@ -128,6 +198,12 @@ def main():
     parser.add_argument('--processed_file', type=str,
                         default='data/pbmc/pbmc3k_processed.h5ad',
                         help='Processed .h5ad with celltype annotations (used with --celltypes)')
+    parser.add_argument('--feature-id', dest='feature_id', type=int, default=None,
+                        help='Steered feature id (default: read from steering payload). Used to '
+                             'mark/record the feature PR on the DE logFC decay plot.')
+    parser.add_argument('--interp-dir', dest='interp_dir', type=str, default=None,
+                        help='SAE interpretations dir with feature_participation_ratios.npy. '
+                             'When given, saves feature_pr_<id>.json and marks PR on the logFC plot.')
     args = parser.parse_args()
 
     PLOT_DIR = args.plot_dir
@@ -185,7 +261,28 @@ def main():
     steering_payload = torch.load(args.steering_file, map_location='cpu')
     inner_results = steering_payload['results']
     alphas = sorted([k for k in inner_results.keys() if isinstance(k, (int, float))])
-    
+
+    # Resolve steered feature id (CLI overrides payload) and load its PR scalar
+    feature_id = args.feature_id
+    if feature_id is None:
+        for alpha in alphas:
+            steered = inner_results[alpha].get('steering_features')
+            if steered:
+                feature_id = int(steered[0])
+                break
+    feature_pr, feature_k = None, None
+    if args.interp_dir is not None and feature_id is not None:
+        pr_path = os.path.join(args.interp_dir, 'feature_participation_ratios.npy')
+        pr_values = np.load(pr_path)
+        feature_pr = float(pr_values[feature_id])
+        feature_k = int(np.clip(round(feature_pr), 10, 100))
+        pr_json = os.path.join(PLOT_DIR, f"feature_pr_{feature_id}.json")
+        with open(pr_json, 'w') as f:
+            json.dump({'feature_id': feature_id, 'PR': feature_pr, 'k': feature_k}, f, indent=2)
+        print(f"Feature {feature_id}: PR={feature_pr:.2f} -> k={feature_k}. Wrote {pr_json}")
+    elif args.interp_dir is not None:
+        print("WARNING: --interp-dir given but no feature id resolved; skipping PR.")
+
     full_data = {'baseline': baseline_logits}
     means_dict = {'baseline': baseline_logits.mean(axis=0)}
     
@@ -248,13 +345,16 @@ def main():
         for alpha in alphas:
             # A) Steered vs Baseline
             label = f"Alpha{alpha}_vs_Baseline"
-            up, down = analyze_de_paired(group_data[alpha], group_data['baseline'], gene_names, expr_mask, label, group_go_dir, background=go_background)
+            up, down, de_stats = analyze_de_paired(group_data[alpha], group_data['baseline'], gene_names, expr_mask, label, group_go_dir, background=go_background)
             plot_trajectories_side_by_side(group_means, gene_names, up, down, label, group_plot_dir)
+            # Save ranked DE genes + logFC decay plot (durable inputs for co-expression script)
+            save_de_genes(de_stats, label, group_plot_dir)
+            plot_de_logfc_decay(de_stats, label, feature_k, group_plot_dir)
 
             # B) Steered vs Ablated (alpha=0)
             if alpha != 0 and 0 in group_data:
                 label_abl = f"Alpha{alpha}_vs_Ablated"
-                up_abl, down_abl = analyze_de_paired(group_data[alpha], group_data[0], gene_names, expr_mask, label_abl, group_go_dir, background=go_background)
+                up_abl, down_abl, _ = analyze_de_paired(group_data[alpha], group_data[0], gene_names, expr_mask, label_abl, group_go_dir, background=go_background)
                 plot_trajectories_side_by_side(group_means, gene_names, up_abl, down_abl, label_abl, group_plot_dir)
 
     print("\nAnalysis complete.")

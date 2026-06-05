@@ -17,6 +17,7 @@ import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from utils.data_utils import (
     load_feature_attribution_data, load_go_enrichment_detailed,
+    get_expressed_genes_mask,
 )
 from utils.similarity import get_top_k_genes_per_feature, compute_gene_feature_sets
 
@@ -89,16 +90,24 @@ def identify_de_gene_features(attribution_csv_path, fg_matrix, gene_names,
 
 
 def get_feature_top_genes(fg_matrix, gene_names, feature_ids, pr_path,
-                           direction_lookups, max_genes=20):
-    """Get top genes per feature using feature-centric PR-adaptive thresholding."""
+                           direction_lookups, expr_mask, max_genes=20):
+    """Get top genes per feature using feature-centric PR-adaptive thresholding.
+
+    Selection is restricted to expressed genes; the resulting expressed-space
+    indices are mapped back to full-gene indices for downstream lookups.
+    """
     pr_values = np.load(pr_path)
+    if expr_mask is None:
+        sel_matrix, expr_indices = fg_matrix, np.arange(fg_matrix.shape[1])
+    else:
+        sel_matrix, expr_indices = fg_matrix[:, expr_mask], np.where(expr_mask)[0]
     feat_gene_sets = get_top_k_genes_per_feature(
-        fg_matrix, pr_values, pr_scale=1, min_genes=10, max_genes=100
+        sel_matrix, pr_values, pr_scale=1, min_genes=10, max_genes=100
     )
 
     feature_genes = {}
     for fid in feature_ids:
-        gene_set = feat_gene_sets[fid]
+        gene_set = expr_indices[list(feat_gene_sets[fid])]
         genes_info = []
         for g_idx in sorted(gene_set):
             gname = gene_names[g_idx]
@@ -346,10 +355,11 @@ def main():
     print(f"\nLoading GO annotations for {len(all_feature_ids)} features...")
     go_data = load_go_enrichment_detailed(args.interpretations_dir, feature_ids=all_feature_ids)
 
-    # Step 5: Get top genes per feature
+    # Step 5: Get top genes per feature (restricted to expressed genes)
     print("\nGetting top genes per feature...")
+    expr_mask = get_expressed_genes_mask(args.raw_data_file) if args.raw_data_file else None
     feature_genes = get_feature_top_genes(
-        fg_matrix, gene_names, all_feature_ids, pr_path, direction_lookups
+        fg_matrix, gene_names, all_feature_ids, pr_path, direction_lookups, expr_mask
     )
 
     # Step 6: Write report

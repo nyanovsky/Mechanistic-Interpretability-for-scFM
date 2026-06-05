@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import torch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from utils.data_utils import load_feature_attribution_data
+from utils.data_utils import load_feature_attribution_data, get_expressed_genes_mask
 from utils.similarity import get_top_k_genes_per_feature, compute_gene_feature_sets
 
 
@@ -207,11 +207,11 @@ def print_top_gene_details(df_attr, fg_matrix, alpha, gene_names, top_n=20):
 
 
 def analyze_steered_features(fg_matrix, alpha, df_direction, gene_names, pr_path,
-                             steered_threshold=0.05, output_dir=None):
+                             expr_mask=None, steered_threshold=0.05, output_dir=None):
     """Reverse analysis: for each steered feature, check how its top genes changed.
 
     For each feature with |alpha - 1| > threshold:
-    - Get its top genes (using existing feature-centric PR)
+    - Get its top genes (using existing feature-centric PR, restricted to expressed genes)
     - Look up those genes' gap fractions from the direction CSV
     - Report: median gap fraction, % correct, and individual gene details
     """
@@ -219,11 +219,16 @@ def analyze_steered_features(fg_matrix, alpha, df_direction, gene_names, pr_path
     steered_mask = np.abs(alpha - 1) > steered_threshold
     steered_indices = np.where(steered_mask)[0]
 
-    # Load feature-centric PR and compute feature -> gene sets
+    # Load feature-centric PR and compute feature -> gene sets (over expressed genes;
+    # expressed-space indices are mapped back to full-gene indices below)
     print(f"\nReverse analysis: {len(steered_indices)} steered features (|a-1| > {steered_threshold})")
     pr_values = np.load(pr_path)
+    if expr_mask is None:
+        sel_matrix, expr_indices = fg_matrix, np.arange(fg_matrix.shape[1])
+    else:
+        sel_matrix, expr_indices = fg_matrix[:, expr_mask], np.where(expr_mask)[0]
     feat_gene_sets = get_top_k_genes_per_feature(
-        fg_matrix, pr_values, pr_scale=1, min_genes=10, max_genes=100
+        sel_matrix, pr_values, pr_scale=1, min_genes=10, max_genes=100
     )
 
     # Build gene name -> metrics lookup from direction CSV
@@ -244,7 +249,7 @@ def analyze_steered_features(fg_matrix, alpha, df_direction, gene_names, pr_path
     # Per-feature analysis
     records = []
     for f_idx in sorted(steered_indices, key=lambda f: abs(alpha[f] - 1), reverse=True):
-        gene_set = feat_gene_sets[f_idx]
+        gene_set = expr_indices[list(feat_gene_sets[f_idx])]
         top_gene_names = [gene_names[g] for g in sorted(gene_set)]
 
         # Filter to genes present in direction CSV
@@ -439,8 +444,10 @@ def main():
         pr_path = os.path.join(os.path.dirname(args.feature_gene_matrix),
                                'feature_participation_ratios.npy')
     if os.path.exists(pr_path):
+        expr_mask = get_expressed_genes_mask(args.raw_data_file) if args.raw_data_file else None
         analyze_steered_features(
             fg_matrix, alpha, df_direction, gene_names, pr_path,
+            expr_mask=expr_mask,
             steered_threshold=args.steered_threshold, output_dir=args.output_dir
         )
     else:
