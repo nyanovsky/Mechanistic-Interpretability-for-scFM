@@ -47,6 +47,10 @@ def main():
                         help='Alpha values to test (default: 0 0.5 1 2 5)')
     parser.add_argument('--name', type=str, default=None,
                         help='Experiment name (default: auto-generated from features)')
+    parser.add_argument('--steer-genes', type=str, nargs='+', default=None,
+                        help='Restrict steering to these gene symbols\' token positions '
+                             '(default: None = steer all gene tokens, identical to before). '
+                             'Used for subset/recruitment experiments.')
 
     # Model and data paths
     parser.add_argument('--model-name', type=str, default='genbio-ai/AIDO.Cell-100M',
@@ -172,6 +176,22 @@ def main():
             print(f"  Subsampling to {args.max_cells} cells...")
             cell_indices = np.random.choice(cell_indices, args.max_cells, replace=False)
 
+    # Optionally restrict steering to a subset of gene-token positions.
+    # token_mask spans the full model sequence (n_aligned_genes + 2 depth tokens).
+    token_mask = None
+    if args.steer_genes is not None:
+        name_to_pos = {g: i for i, g in enumerate(adata_aligned.var_names)}
+        token_mask = torch.zeros(adata_aligned.n_vars + 2, dtype=torch.bool, device=args.device)
+        resolved = [g for g in args.steer_genes if g in name_to_pos]
+        for g in resolved:
+            token_mask[name_to_pos[g]] = True
+        missing = [g for g in args.steer_genes if g not in name_to_pos]
+        print(f"\n  Subset steering: {int(token_mask.sum())} gene tokens -> {resolved}")
+        if missing:
+            print(f"    WARNING: not in aligned gene set, skipped: {missing}")
+        if int(token_mask.sum()) == 0:
+            raise ValueError("--steer-genes resolved to 0 token positions; aborting.")
+
     # Build steering config
     steering_config = SteeringConfig(
         name=args.name,
@@ -198,6 +218,7 @@ def main():
         steering_config,
         adata_aligned,
         cell_indices=cell_indices,
+        token_mask=token_mask,
     )
 
     # Save results

@@ -217,12 +217,30 @@ class SteeringExperiment:
         self.attn_mask_tensor = torch.from_numpy(attention_mask).unsqueeze(0).to(device)
 
     def run_steered(self, adata, steering_features, alpha, cell_indices=None,
-                     token_mask=None, steering_mode='multiplicative'):
+                     token_mask=None, steering_mode='multiplicative',
+                     input_mask=None, mask_token_id=-1,
+                     capture_feature=None, capture_positions=None):
         """Run steered forward pass with a SINGLE forward pass per batch.
 
         Notes on semantics of alpha=0:
           - multiplicative: features set to 0 (ABLATION).
           - additive: no-op (h unchanged); useful as a baseline control.
+
+        input_mask: optional (seq_len,) bool tensor, a sibling to token_mask in the
+        same seq-position space (n_aligned_genes + 2 depth tokens). True positions
+        are overwritten with mask_token_id in the model input, applied AFTER
+        preprocess_counts so depth/total-count tokens stay computed from the
+        original counts. GeneEmbedding swaps mask_token_id for the learned
+        mask_embedding -> prediction-from-context readout. Orthogonal to token_mask
+        (which selects WHERE the SAE feature is steered in hidden space).
+
+        capture_feature: optional SAE feature id. When set, the layer-layer_idx
+        activations are SAE-encoded in the same forward pass and that feature's
+        activation is returned as result['feature_acts'] (n_cells, n_positions) —
+        this is exactly the value multiplicative steering scales. Restrict to
+        capture_positions (list of seq indices) to avoid storing all positions.
+        The capture hook fires after the steering hook, so for the no-op baseline
+        (additive alpha=0) it equals the native activation.
         """
         if cell_indices is None:
             cell_indices = np.arange(adata.n_obs)
@@ -243,9 +261,12 @@ class SteeringExperiment:
         )
 
         embedding_hook = ActivationHook(self.model.bert.encoder.ln)
+        capture_hook = ActivationHook(self.model.bert.encoder.layer[self.layer_idx]) \
+            if capture_feature is not None else None
 
         outputs_list = []
         embeddings_list = []
+        feature_acts_list = []
 
         try:
             with torch.no_grad():
@@ -257,6 +278,11 @@ class SteeringExperiment:
                         batch_counts = batch_counts.toarray()
 
                     batch_processed = preprocess_counts(batch_counts, device=self.device)
+
+                    # Input masking (after preprocess so depth tokens use real
+                    # counts): overwrite probe positions with the mask token id.
+                    if input_mask is not None:
+                        batch_processed[:, input_mask] = mask_token_id
 
                     seq_len = batch_processed.shape[1]
                     pbar.set_postfix({"seq_len": seq_len})
@@ -282,9 +308,19 @@ class SteeringExperiment:
                     outputs_list.append(logits_filtered.cpu())
                     embeddings_list.append(cell_embeddings.cpu())
 
+                    if capture_feature is not None:
+                        h = capture_hook.get_activations()  # (b, seq, hidden)
+                        if capture_positions is not None:
+                            h = h[:, capture_positions, :]
+                        bsz_, slen_, hd_ = h.shape
+                        fa = self.sae.encode(h.reshape(-1, hd_).float())[:, capture_feature]
+                        feature_acts_list.append(fa.reshape(bsz_, slen_).cpu())
+
                     del output, last_hidden, batch_processed, batch_attn_mask
         finally:
             embedding_hook.remove()
+            if capture_hook is not None:
+                capture_hook.remove()
             steering_model.remove_hook()
             torch.cuda.empty_cache()
 
@@ -295,10 +331,17 @@ class SteeringExperiment:
             'alpha': alpha,
             'steering_features': steering_features,
             'steering_mode': steering_mode,
+            'feature_acts': torch.cat(feature_acts_list, dim=0)
+                            if capture_feature is not None else None,
         }
 
-    def run_experiment(self, config: SteeringConfig, adata, cell_indices=None):
-        """Run complete steering experiment across multiple alphas."""
+    def run_experiment(self, config: SteeringConfig, adata, cell_indices=None,
+                       token_mask=None):
+        """Run complete steering experiment across multiple alphas.
+
+        token_mask: optional (seq_len,) bool tensor restricting steering to those
+        token positions (default None = steer all positions).
+        """
         print("="*70)
         print(f"STEERING EXPERIMENT: {config.name}")
         print("="*70)
@@ -316,7 +359,8 @@ class SteeringExperiment:
                 adata,
                 config.steering_features,
                 alpha,
-                cell_indices
+                cell_indices,
+                token_mask=token_mask,
             )
 
         print("\n" + "="*70)
